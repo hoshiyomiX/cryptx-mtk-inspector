@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.5 — MTK Decrypt Inspector</title>
+<title>CryptX v3.6 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.5</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.6</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -882,23 +882,56 @@ const API_TO_ANDROID = {
   30: '11', 31: '12', 32: '12L', 33: '13', 34: '14', 35: '15', 36: '16'
 };
 
-// Version-specific required packages
+// Version-specific required packages (PRODUCT_PACKAGES)
+// A11-A12: keymaster@4.0 (A12 can use 4.1)
+// A13-A14: keymaster@4.1 REQUIRED
+// A15+: keymint, secureclock, sharedsecret REQUIRED
 const VERSION_PACKAGES = {
-  13: ['android.hardware.keymaster@4.1'],
-  14: ['android.hardware.keymaster@4.1', 'libkeymaster41'],
+  11: ['android.hardware.keymaster@4.0'],
+  12: ['android.hardware.keymaster@4.0', 'android.hardware.keymaster@4.1'],  // 4.1 recommended
+  13: ['android.hardware.keymaster@4.1'],  // 4.1 REQUIRED
+  14: ['android.hardware.keymaster@4.1', 'libkeymaster41'],  // libkeymaster41 added
   15: ['android.hardware.security.keymint', 'android.hardware.security.secureclock', 'android.hardware.security.sharedsecret']
 };
 
 // Version-specific required flags in BoardConfig.mk
+// Common (A11-A15): TW_INCLUDE_CRYPTO, TW_INCLUDE_CRYPTO_FBE
+// A11-A14: TW_INCLUDE_FBE_METADATA_DECRYPT (removed in A15)
+// A12+: BOARD_USES_METADATA_PARTITION (optional, removed in A15)
+// A15+: TW_FORCE_KEYMASTER_VER (recommended)
 const VERSION_FLAGS = {
-  11: { required: ['TW_INCLUDE_CRYPTO', 'TW_INCLUDE_CRYPTO_FBE'], optional: ['TW_INCLUDE_FBE_METADATA_DECRYPT'] },
-  12: { required: ['TW_INCLUDE_CRYPTO', 'TW_INCLUDE_CRYPTO_FBE', 'TW_INCLUDE_FBE_METADATA_DECRYPT'], optional: ['BOARD_USES_METADATA_PARTITION'] },
-  13: { required: ['TW_INCLUDE_CRYPTO', 'TW_INCLUDE_CRYPTO_FBE', 'TW_INCLUDE_FBE_METADATA_DECRYPT'], optional: ['TW_USE_FSCRYPT_POLICY'] },
-  14: { required: ['TW_INCLUDE_CRYPTO', 'TW_INCLUDE_CRYPTO_FBE'], optional: ['TW_INCLUDE_FBE_METADATA_DECRYPT', 'TW_USE_FSCRYPT_POLICY', 'TW_FORCE_KEYMASTER_VER'] },
-  15: { required: ['TW_INCLUDE_CRYPTO', 'TW_INCLUDE_CRYPTO_FBE'], optional: ['TW_USE_FSCRYPT_POLICY', 'TW_FORCE_KEYMASTER_VER'], removed: ['TW_INCLUDE_FBE_METADATA_DECRYPT', 'BOARD_USES_METADATA_PARTITION'] }
+  11: { 
+    required: ['TW_INCLUDE_CRYPTO', 'TW_INCLUDE_CRYPTO_FBE'], 
+    optional: ['TW_INCLUDE_FBE_METADATA_DECRYPT'], 
+    removed: [] 
+  },
+  12: { 
+    required: ['TW_INCLUDE_CRYPTO', 'TW_INCLUDE_CRYPTO_FBE', 'TW_INCLUDE_FBE_METADATA_DECRYPT'], 
+    optional: ['BOARD_USES_METADATA_PARTITION'], 
+    removed: [] 
+  },
+  13: { 
+    required: ['TW_INCLUDE_CRYPTO', 'TW_INCLUDE_CRYPTO_FBE', 'TW_INCLUDE_FBE_METADATA_DECRYPT'], 
+    optional: ['TW_USE_FSCRYPT_POLICY', 'BOARD_USES_METADATA_PARTITION'], 
+    removed: [] 
+  },
+  14: { 
+    required: ['TW_INCLUDE_CRYPTO', 'TW_INCLUDE_CRYPTO_FBE'], 
+    optional: ['TW_INCLUDE_FBE_METADATA_DECRYPT', 'TW_USE_FSCRYPT_POLICY', 'TW_FORCE_KEYMASTER_VER', 'BOARD_USES_METADATA_PARTITION'], 
+    removed: [] 
+  },
+  15: { 
+    required: ['TW_INCLUDE_CRYPTO', 'TW_INCLUDE_CRYPTO_FBE'], 
+    optional: ['TW_USE_FSCRYPT_POLICY', 'TW_FORCE_KEYMASTER_VER'], 
+    removed: ['TW_INCLUDE_FBE_METADATA_DECRYPT', 'BOARD_USES_METADATA_PARTITION'] 
+  }
 };
 
 // Version-specific library requirements
+// A11: Basic keymaster 4.0
+// A12+: keymaster 4.1 added
+// A13+: puresoftkeymasterdevice added for software fallback
+// A14-A15: Same as A13
 const VERSION_LIBRARIES = {
   11: ['libkeymaster4', 'libion'],
   12: ['libkeymaster4', 'libkeymaster41', 'libion', 'libxml2'],
@@ -908,6 +941,9 @@ const VERSION_LIBRARIES = {
 };
 
 // Version-specific service class requirements
+// A11: keymaster/gatekeeper use 'hal' class
+// A12+: keymaster should use 'early_hal' for earlier start
+// A13+: gatekeeper should also use 'early_hal'
 const VERSION_SERVICE_CLASS = {
   11: { tee: 'core', keymaster: 'hal', gatekeeper: 'hal' },
   12: { tee: 'core', keymaster: 'early_hal', gatekeeper: 'hal' },
@@ -917,6 +953,11 @@ const VERSION_SERVICE_CLASS = {
 };
 
 // Version-specific init service requirements (from commit 97f07ab analysis)
+// A11: keymaster-4-0, basic gatekeeper
+// A12: keymaster-4-0 OR 4-1
+// A13: keymaster-4-1-trustonic (specific TEE variant)
+// A14: gatekeeper with TEE suffix added
+// A15: keymint-service REQUIRED alongside keymaster
 const VERSION_INIT_SERVICES = {
   11: {
     tee: ['mobicore', 'mcDriverDaemon'],
@@ -926,42 +967,47 @@ const VERSION_INIT_SERVICES = {
   },
   12: {
     tee: ['mobicore', 'mcDriverDaemon'],
-    keymaster: ['vendor.keymaster-4-0', 'vendor.keymaster-4-1'],
+    keymaster: ['vendor.keymaster-4-0', 'vendor.keymaster-4-1'],  // 4.1 recommended
     gatekeeper: ['vendor.gatekeeper-1-0'],
     optional: ['tee-supplicant']
   },
   13: {
     tee: ['mobicore', 'mcDriverDaemon'],
-    keymaster: ['vendor.keymaster-4-1-trustonic'],
+    keymaster: ['vendor.keymaster-4-1-trustonic'],  // TEE-specific variant
     gatekeeper: ['vendor.gatekeeper-1-0'],
     optional: ['vendor.keymint-service']
   },
   14: {
     tee: ['mobicore', 'mcDriverDaemon'],
     keymaster: ['vendor.keymaster-4-1-trustonic'],
-    gatekeeper: ['vendor.gatekeeper-1-0-trustonic'],
+    gatekeeper: ['vendor.gatekeeper-1-0-trustonic'],  // TEE suffix added
     optional: ['vendor.keymint-service']
   },
   15: {
     tee: ['mobicore', 'mcDriverDaemon'],
     keymaster: ['vendor.keymaster-4-1-trustonic'],
     gatekeeper: ['vendor.gatekeeper-1-0-trustonic'],
-    required: ['vendor.keymint-service', 'android.hardware.security.keymint']
+    required: ['vendor.keymint-service', 'android.hardware.security.keymint']  // REQUIRED for A15+
   }
 };
 
 // Version-specific VINTF manifest requirements
+// A11: keymaster@4.0
+// A12: keymaster@4.0 + 4.1
+// A13: keymaster@4.1 REQUIRED
+// A14: Same as A13, optional keymint
+// A15: keymint, secureclock, sharedsecret REQUIRED
 const VERSION_VINTF_MANIFESTS = {
   11: {
     required: ['android.hardware.keymaster@4.0'],
     optional: ['android.hardware.gatekeeper@1.0']
   },
   12: {
-    required: ['android.hardware.keymaster@4.0', 'android.hardware.keymaster@4.1'],
-    optional: ['android.hardware.gatekeeper@1.0']
+    required: ['android.hardware.keymaster@4.0'],  // 4.1 recommended but not required
+    optional: ['android.hardware.keymaster@4.1', 'android.hardware.gatekeeper@1.0']
   },
   13: {
-    required: ['android.hardware.keymaster@4.1'],
+    required: ['android.hardware.keymaster@4.1'],  // 4.1 REQUIRED
     optional: ['android.hardware.security.keymint', 'android.hardware.gatekeeper@1.0']
   },
   14: {
@@ -970,11 +1016,14 @@ const VERSION_VINTF_MANIFESTS = {
   },
   15: {
     required: ['android.hardware.security.keymint', 'android.hardware.security.secureclock', 'android.hardware.security.sharedsecret'],
-    optional: ['android.hardware.keymaster@4.1']
+    optional: ['android.hardware.keymaster@4.1']  // Optional fallback
   }
 };
 
 // Version-specific kernel module requirements
+// A11-A12: inlinecrypt for wrappedkey
+// A13+: fscrypt added for v2 policy
+// A15: f2fs_compress added
 const VERSION_KERNEL_MODULES = {
   11: ['inlinecrypt'],
   12: ['inlinecrypt'],
@@ -3227,28 +3276,40 @@ function runValidation(){
     }
     
     // === Version-Specific Keymaster Version Check ===
-    if(ver >= 13 && kmSvcs.length > 0){
+    // A11: 4.0 is fine
+    // A12: 4.1 recommended (warning if missing)
+    // A13+: 4.1 REQUIRED (error if missing)
+    if(ver >= 12 && kmSvcs.length > 0){
       const hasKm41 = kmSvcs.some(s => 
         s.binary.includes('keymaster@4.1') || 
         s.binary.includes('keymaster-4-1') ||
         s.interfaceDecls?.some(i => i.includes('@4.1'))
       );
-      chk('ver_km_41','Version Keymaster','Keymaster 4.1 Support',hasKm41,8,
-        'Keymaster 4.1 service found',
-        'Android 13+ requires Keymaster 4.1 for proper decryption','high');
+      
+      if(ver >= 13){
+        // A13+: Keymaster 4.1 REQUIRED
+        chk('ver_km_41','Version Keymaster','Keymaster 4.1 Support',hasKm41,8,
+          'Keymaster 4.1 service found',
+          'Android 13+ requires Keymaster 4.1 for proper decryption','critical');
+      } else if(ver === 12){
+        // A12: Keymaster 4.1 recommended
+        chk('ver_km_41','Version Keymaster','Keymaster 4.1 Support',hasKm41,4,
+          'Keymaster 4.1 service found (recommended)',
+          'Android 12 recommends Keymaster 4.1 for full compatibility');
+      }
     }
     
-    // === fscrypt v2 Check (Android 13+) ===
+    // === fscrypt v2 Check (Android 13+ ONLY) ===
     if(ver >= 13){
       const fscryptV2 = dataE.some(e => 
         e.fbeSpec && (e.fbeSpec.includes('v2') || e.fbeSpec.includes('v3'))
       );
-      chk('ver_fscrypt_v2','Version Crypto','fscrypt v2+ Policy',fscryptV2,5,
+      chk('ver_fscrypt_v2','Version Crypto','fscrypt v2+ Policy',fscryptV2,6,
         'fscrypt v2+ encryption policy detected',
-        'Android 13+ should use fscrypt v2+ policy');
+        'Android 13+ requires fscrypt v2+ policy','high');
     }
     
-    // === wrappedkey Check (Android 12+) ===
+    // === wrappedkey Check (Android 12+ ONLY) ===
     if(ver >= 12 && dataE.some(e => e.wrapped)){
       const inlineSupport = Object.values(bc).some(v => /inlinecrypt|INLINE_ENCRYPTION/i.test(v)) ||
                            (bc['BOARD_KERNEL_CMDLINE'] || '').includes('inlinecrypt');
@@ -3774,16 +3835,21 @@ ${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(
     }
     
     // Version-specific Keymaster version check
-    if(ver >= 13){
+    // A11: 4.0 is fine
+    // A12: 4.1 recommended
+    // A13+: 4.1 REQUIRED
+    if(ver >= 12){
       const kmSvcs = S.initServices.filter(s => s.isCrypto);
       const hasKm41 = kmSvcs.some(s => 
         s.binary.includes('keymaster@4.1') || 
         s.binary.includes('keymaster-4-1') ||
         (s.interfaceDecls || []).some(i => i.includes('@4.1'))
       );
-      if(kmSvcs.length > 0 && !hasKm41){
-        rc('high',80,`Android ${ver} Requires Keymaster 4.1`,
-          'Android 13+ devices should use Keymaster 4.1 for full compatibility',
+      
+      if(ver >= 13 && kmSvcs.length > 0 && !hasKm41){
+        // A13+: Keymaster 4.1 REQUIRED
+        rc('critical',85,`Android ${ver} Requires Keymaster 4.1`,
+          'Android 13+ devices MUST use Keymaster 4.1 for full decryption compatibility',
           kmSvcs.map(s => `Found: ${s.binary}`),
           `FILE: device.mk or prebuilt/
 
@@ -3796,6 +3862,16 @@ ${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(
 +     interface android.hardware.keymaster@4.0::IKeymasterDevice default
 +     interface android.hardware.keymaster@4.1::IKeymasterDevice default
       class early_hal`, ver);
+      } else if(ver === 12 && kmSvcs.length > 0 && !hasKm41){
+        // A12: Keymaster 4.1 recommended
+        rc('medium',60,`Android 12: Keymaster 4.1 Recommended`,
+          'Android 12 works better with Keymaster 4.1, though 4.0 is still supported',
+          kmSvcs.map(s => `Found: ${s.binary}`),
+          `FILE: device.mk or prebuilt/
+
+# Android 12 recommends Keymaster 4.1:
+# Consider upgrading from 4.0 to 4.1 for better compatibility:
++ PRODUCT_PACKAGES += android.hardware.keymaster@4.1-service.trustonic`, ver);
       }
     }
     
