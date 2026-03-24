@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.21 — MTK Decrypt Inspector</title>
+<title>CryptX v3.22 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.21</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.22</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -2030,6 +2030,28 @@ function renderCommonTreeNotification(){
   const pathHints=S.commonTrees.filter(t=>t.type==='path_hint');
 
   if(githubTrees.length===0&&pathHints.length===0){area.style.display='none';return;}
+  
+  // Only show if key dependencies are not met
+  const kmSvcs=S.initServices.filter(s=>s.isCrypto);
+  const gkSvcs=S.initServices.filter(s=>s.isGK);
+  const teeSvcs=S.initServices.filter(s=>s.isTEE);
+  const hasKmBin=kmSvcs.length>0&&S.binaryChecks.some(b=>b.svc.isCrypto&&(b.status==='found'||b.status==='copied'));
+  const hasGkBin=gkSvcs.length>0&&S.binaryChecks.some(b=>b.svc.isGK&&(b.status==='found'||b.status==='copied'));
+  const hasTeeBin=teeSvcs.length>0&&S.binaryChecks.some(b=>b.svc.isTEE&&(b.status==='found'||b.status==='copied'));
+  
+  // Check if critical dependencies are missing
+  const missingDependencies = [];
+  if(kmSvcs.length===0) missingDependencies.push('keymaster service');
+  else if(!hasKmBin) missingDependencies.push('keymaster binary');
+  if(gkSvcs.length===0) missingDependencies.push('gatekeeper service');
+  else if(!hasGkBin) missingDependencies.push('gatekeeper binary');
+  if(teeSvcs.length>0 && !hasTeeBin) missingDependencies.push('TEE daemon binary');
+  
+  // Hide if all dependencies are met
+  if(missingDependencies.length===0){
+    area.style.display='none';
+    return;
+  }
 
   area.style.display='block';
 
@@ -2037,15 +2059,15 @@ function renderCommonTreeNotification(){
 
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
 
-      <span class="mi" style="color:var(--md-tertiary);font-size:22px">account_tree</span>
+      <span class="mi" style="color:var(--md-warning);font-size:22px">account_tree</span>
 
-      <div class="title-small">Common/Shared Tree Detected</div>
+      <div class="title-small" style="color:var(--md-warning)">Common/Shared Tree Detected</div>
 
     </div>
 
     <div class="body-small" style="color:var(--md-on-surface-variant);margin-bottom:12px">
 
-      This device tree references external common/shared repositories or paths. These may contain additional init.rc, fstab, or crypto configs that affect decryption.
+      Missing dependencies: <strong>${missingDependencies.join(', ')}</strong>. A common/shared tree may contain the required configurations. Check vendorsetup.sh for repository links.
 
     </div>`;
 
@@ -3425,16 +3447,6 @@ function runValidation(){
     }
   }
   
-  // === Filesystem Fallback Checks ===
-  if(S.fstabFallbacks && S.fstabFallbacks.length > 0){
-    const optimalCount = S.fstabFallbacks.filter(f => f.status === 'optimal').length;
-    const warningCount = S.fstabFallbacks.filter(f => f.status === 'warning').length;
-    
-    chk('fstab_fallback','Fstab','Filesystem Fallback (EROFS→ext4)',optimalCount>0,6,
-      `${optimalCount} partitions with fallback`,
-      warningCount>0?`${warningCount} EROFS-only partitions - add ext4 fallback`:'No fallback configured');
-  }
-  
   // === Recovery Library Checks ===
   if(S.recoveryLibs && S.recoveryLibs.missing && S.recoveryLibs.missing.length > 0){
     chk('recovery_libs','Libraries','Keymaster Recovery Libraries',false,10,
@@ -4199,22 +4211,6 @@ ${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(
     }
   }
   
-  // === Filesystem Fallback Issues ===
-  if(S.fstabFallbacks && S.fstabFallbacks.some(f => f.status === 'warning')){
-    const warnings = S.fstabFallbacks.filter(f => f.status === 'warning');
-    rc('medium',50,'EROFS Partitions Without ext4 Fallback',
-      'Some EROFS partitions lack ext4 fallback, which may cause mount failures in recovery',
-      warnings.map(f => f.message),
-      `FILE: fstab.mt6833 or recovery.fstab
-
-# Add ext4 fallback entries for EROFS partitions:
-  system /system erofs ro wait,slotselect,avb=vbmeta_system,logical,first_stage_mount
-+ system /system ext4 ro wait,slotselect,avb=vbmeta_system,logical,first_stage_mount
-
-  vendor /vendor erofs ro wait,slotselect,avb,logical,first_stage_mount
-+ vendor /vendor ext4 ro wait,slotselect,avb,logical,first_stage_mount`);
-  }
-  
   // NOTE: Recovery library issues are now handled by version-specific check
   // "Android X Missing Recovery Libraries" above - no duplicate needed
   
@@ -4952,23 +4948,6 @@ function generateFixes(){
       raw:a15Lines.filter(l=>l.type==='add').map(l=>l.text).join('\n')});
   }
   
-  // === Filesystem Fallback Fixes ===
-  if(S.fstabFallbacks && S.fstabFallbacks.some(f => f.status === 'warning')){
-    const fsLines = [];
-    
-    fsLines.push({type:'header',text:'@@ Filesystem Fallback for EROFS Partitions @@'});
-    fsLines.push({type:'context',text:'# Add ext4 fallback entries for EROFS partitions'});
-    fsLines.push({type:'context',text:'# This improves recovery compatibility'});
-    
-    for(const f of S.fstabFallbacks.filter(f => f.status === 'warning')){
-      fsLines.push({type:'add',text:`${f.mountPoint} ${f.mountPoint} erofs ro wait,slotselect,avb,logical,first_stage_mount`});
-      fsLines.push({type:'add',text:`${f.mountPoint} ${f.mountPoint} ext4 ro wait,slotselect,avb,logical,first_stage_mount`});
-    }
-    
-    S.fixes.push({title:'Filesystem Fallback',file:'fstab.mt6833',lines:fsLines,prio:'P1',
-      raw:fsLines.filter(l=>l.type==='add').map(l=>l.text).join('\n')});
-  }
-  
   // === Recovery Library Fixes ===
   if(S.recoveryLibs && S.recoveryLibs.missing && S.recoveryLibs.missing.length > 0){
     const libLines = [];
@@ -5607,16 +5586,6 @@ function renderOverview(){
         <div class="body-small" style="color:var(--md-on-surface-variant)">API ${verInfo.apiLevel || '?'} · ${verInfo.codename || verInfo.source}</div>
       </div>
     </div>` : '';
-  
-  // Filesystem Fallback Status
-  const fallbackStatus = (S.fstabFallbacks && S.fstabFallbacks.length > 0) ?
-    `<div class="ov-card" style="background:linear-gradient(135deg,rgba(139,201,154,0.15),rgba(139,201,154,0.05));border-color:var(--md-success);">
-      <span class="mi" style="color:var(--md-success)">folder_open</span>
-      <div>
-        <div class="label-large" style="color:var(--md-success)">Filesystem Fallback</div>
-        <div class="body-small" style="color:var(--md-on-surface-variant)">${S.fstabFallbacks.filter(f=>f.status==='optimal').length} partitions with EROFS→ext4</div>
-      </div>
-    </div>` : '';
 
   let h=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px;">
 
@@ -5630,12 +5599,11 @@ function renderOverview(){
 
   </div>`;
   
-  // Add Android Version, A15+ and Fallback status cards
-  if(androidVersionStatus || a15Status || fallbackStatus){
+  // Add Android Version and A15+ status cards
+  if(androidVersionStatus || a15Status){
     h+=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:24px;">
       ${androidVersionStatus}
       ${a15Status}
-      ${fallbackStatus}
     </div>`;
   }
 
@@ -5670,20 +5638,10 @@ function renderOverview(){
     gkSvcs[0]?.name||'—',gkSvcs[0]?.binary||'—',gkOk,gkSvcs.length>0);
 
   h+=`</div>`;
-  
-  // === Android Version Quick Reference ===
-  if(S.androidVersion && S.androidVersion.version){
-    h+= renderVersionQuickRef();
-  }
-  
-  // === Android Version Requirements Matrix ===
-  if(S.androidVersion && S.androidVersion.version){
-    h+= renderVersionRequirementsMatrix();
-  }
 
   // Checks summary
 
-  h+=`<div class="section-title"><span class="mi">checklist</span> Validation Summary</div>`;
+  h+=`<div class="section-title"><span class="mi">checklist</span> General Validations</div>`;
 
   h+=`<div class="validation-summary-card">`;
 
