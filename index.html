@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.6 — MTK Decrypt Inspector</title>
+<title>CryptX v3.7 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.6</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.7</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -2552,26 +2552,34 @@ function shouldHaveFlag(flagName){
 
 // Detect recovery libraries for keymaster compatibility
 function detectRecoveryLibs(){
-  const mkContent = S.deviceMk.raw;
+  // Combine all .mk files content including BoardConfig.mk
+  const allMkContent = S.deviceMk.raw;
+  const boardConfigRaw = S.files.boardconfig.map(fp => S.fileContents[fp] || '').join('\n');
+  const combinedContent = allMkContent + '\n' + boardConfigRaw;
+  
   const modules = [];
   const sourceFiles = [];
   
-  // Parse TARGET_RECOVERY_DEVICE_MODULES
-  const modulesMatch = mkContent.match(/TARGET_RECOVERY_DEVICE_MODULES\s*[:+?]?=\s*([^\n]+(?:\\[\s\S]*?[^\n]+)*)/i);
-  if(modulesMatch){
-    const mods = modulesMatch[1].replace(/\\\n/g, ' ').trim().split(/\s+/).filter(x=>x&&x!=='\\');
+  // Parse TARGET_RECOVERY_DEVICE_MODULES from all .mk files
+  const modulesMatches = combinedContent.matchAll(/TARGET_RECOVERY_DEVICE_MODULES\s*[:+?]?=\s*([^\n]+(?:\\[\s\S]*?[^\n]+)*)/gi);
+  for(const m of modulesMatches){
+    const mods = m[1].replace(/\\\n/g, ' ').trim().split(/\s+/).filter(x=>x&&x!=='\\');
     modules.push(...mods);
   }
   
-  // Parse RECOVERY_LIBRARY_SOURCE_FILES
-  const sourceMatch = mkContent.match(/RECOVERY_LIBRARY_SOURCE_FILES\s*[:+?]?=\s*([^\n]+(?:\\[\s\S]*?[^\n]+)*)/i);
-  if(sourceMatch){
-    const srcs = sourceMatch[1].replace(/\\\n/g, ' ').trim().split(/\s+/).filter(x=>x&&x!=='\\');
+  // Parse RECOVERY_LIBRARY_SOURCE_FILES from all .mk files
+  const sourceMatches = combinedContent.matchAll(/RECOVERY_LIBRARY_SOURCE_FILES\s*[:+?]?=\s*([^\n]+(?:\\[\s\S]*?[^\n]+)*)/gi);
+  for(const m of sourceMatches){
+    const srcs = m[1].replace(/\\\n/g, ' ').trim().split(/\s+/).filter(x=>x&&x!=='\\');
     sourceFiles.push(...srcs);
   }
   
+  // Get version-specific required libraries
+  const ver = S.androidVersion?.version;
+  const requiredLibs = ver ? (VERSION_LIBRARIES[ver] || RECOVERY_KEYMASTER_LIBS) : RECOVERY_KEYMASTER_LIBS;
+  
   // Check for missing critical libraries
-  const missing = RECOVERY_KEYMASTER_LIBS.filter(lib => {
+  const missing = requiredLibs.filter(lib => {
     const found = modules.some(m => m.toLowerCase().includes(lib.toLowerCase())) ||
                   sourceFiles.some(s => s.toLowerCase().includes(lib.toLowerCase()));
     return !found;
@@ -2662,7 +2670,10 @@ function parseDeviceMk(){
 
   S.deviceMk={packages:[],copyFiles:[],raw:''};
 
-  for(const fp of S.files.mk){
+  // Check all .mk files including BoardConfig.mk
+  const allMkFiles = [...S.files.mk, ...S.files.boardconfig];
+  
+  for(const fp of allMkFiles){
 
     const c=S.fileContents[fp];if(!c)continue;
 
@@ -4050,19 +4061,35 @@ ${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(
   }
 
   // === VINTF Manifest Issues ===
+  // Note: For TWRP recovery trees, VINTF manifest is often not required if:
+  // 1. HAL is built from source via PRODUCT_PACKAGES
+  // 2. Service is declared in init.rc with proper interfaces
+  // Only warn if NEITHER condition is met
   if(S.xmlManifest && S.xmlManifest.services){
     const manifestServices = S.xmlManifest.services;
     
     // Check for missing keymaster in manifest
     const hasKmManifest = manifestServices.some(s => 
       s.toLowerCase().includes('keymaster') || s.toLowerCase().includes('keymint'));
+    
+    // Check if keymaster is in PRODUCT_PACKAGES - if so, manifest might be auto-generated
+    const hasKmPackage = S.deviceMk.packages.some(p => 
+      p.toLowerCase().includes('keymaster') || p.toLowerCase().includes('keymint'));
+    // Check if keymaster service exists in init.rc
+    const hasKmService = S.initServices.some(s => s.isCrypto);
+    
     if(!hasKmManifest){
-      rc('high',70,'VINTF Missing Keymaster/Keymint HAL',
-        'No keymaster or keymint HAL declared in VINTF manifest. This may cause HAL registration failures.',
-        ['Checked: manifest.xml, compatibility_matrix.xml, vintf manifest files'],
-        `FILE: manifest.xml or device.mk
+      // Only warn if no package AND no service (truly missing)
+      if(!hasKmPackage && !hasKmService){
+        rc('high',70,'VINTF Missing Keymaster/Keymint HAL',
+          'No keymaster or keymint HAL declared in VINTF manifest, PRODUCT_PACKAGES, or init.rc.',
+          ['Checked: manifest.xml, PRODUCT_PACKAGES, init.rc services'],
+          `FILE: manifest.xml or device.mk
 
-# Add VINTF manifest for keymaster:
+# Option 1: Add to PRODUCT_PACKAGES (auto-generates manifest):
++ PRODUCT_PACKAGES += android.hardware.keymaster@4.1-service.trustonic
+
+# Option 2: Add VINTF manifest entry:
 + <hal format="hidl">
 +     <name>android.hardware.keymaster@4.1</name>
 +     <transport>hwbinder</transport>
@@ -4071,10 +4098,8 @@ ${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(
 +         <name>IKeymasterDevice</name>
 +         <instance>default</instance>
 +     </interface>
-+ </hal>
-
-# Or in device.mk:
-+ PRODUCT_PACKAGES += android.hardware.keymaster@4.1-service.trustonic`);
++ </hal>`);
+      }
     }
     
     // Version-specific VINTF issues
@@ -4082,24 +4107,29 @@ ${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(
       const ver = S.androidVersion.version;
       const verVintf = VERSION_VINTF_MANIFESTS[ver] || { required: [], optional: [] };
       
-      const missingVintf = (verVintf.required || []).filter(req => 
-        !manifestServices.some(s => s.includes(req))
-      );
+      // Check required VINTF declarations, but skip if already in PRODUCT_PACKAGES or init.rc
+      const missingVintf = (verVintf.required || []).filter(req => {
+        const inManifest = manifestServices.some(s => s.includes(req));
+        const inPackages = S.deviceMk.packages.some(p => p.toLowerCase().includes(req.split('@')[0].toLowerCase()));
+        const inService = S.initServices.some(s => s.binary.toLowerCase().includes(req.split('@')[0].toLowerCase()));
+        return !inManifest && !inPackages && !inService;
+      });
       
       if(missingVintf.length > 0){
-        rc('high',80,`Android ${ver} Missing VINTF Declarations`,
-          `Required VINTF declarations for Android ${ver} are missing`,
+        rc('medium',65,`Android ${ver} Missing VINTF Declarations`,
+          `Required VINTF declarations for Android ${ver} not found in manifest, PRODUCT_PACKAGES, or init.rc`,
           missingVintf.map(v => `Missing: ${v}`),
           `FILE: manifest.xml or device.mk
 
-# Android ${ver} required VINTF declarations:
-${missingVintf.map(v => `+ Ensure ${v} is declared in manifest or built from source`).join('\n')}`, ver);
+# Android ${ver} - Add to PRODUCT_PACKAGES (auto-generates manifest):
+${missingVintf.map(v => `+ PRODUCT_PACKAGES += ${v}`).join('\n')}`, ver);
       }
       
       // A15+ Keymint check
       if(ver >= 15){
         const hasKeymint = manifestServices.some(s => s.toLowerCase().includes('keymint'));
-        if(!hasKeymint){
+        const hasKeymintPkg = S.deviceMk.packages.some(p => p.toLowerCase().includes('keymint'));
+        if(!hasKeymint && !hasKeymintPkg){
           rc('critical',90,'Android 15+ Missing Keymint HAL',
             'Android 15+ requires Keymint HAL instead of Keymaster for FBE decryption',
             [`Current: keymaster detected, but A15+ requires keymint`],
@@ -4116,27 +4146,67 @@ ${missingVintf.map(v => `+ Ensure ${v} is declared in manifest or built from sou
   }
   
   // === Kernel Module Issues ===
+  // Note: If using prebuilt kernel, modules may already be compiled in
+  // Only warn if no cmdline AND no prebuilt kernel detected
   if(S.androidVersion && S.androidVersion.version){
     const ver = S.androidVersion.version;
     const kernelModules = VERSION_KERNEL_MODULES[ver] || [];
-    const cmdline = bc['BOARD_KERNEL_CMDLINE'] || '';
+    const cmdline = (bc['BOARD_KERNEL_CMDLINE'] || '').toLowerCase();
     
-    const missingModules = kernelModules.filter(mod => 
-      !cmdline.toLowerCase().includes(mod.toLowerCase())
+    // Check for prebuilt kernel indicators
+    const hasPrebuiltKernel = 
+      bc['TARGET_PREBUILT_KERNEL'] || 
+      bc['BOARD_PREBUILT_KERNEL'] ||
+      bc['PREBUILT_KERNEL'] ||
+      S.deviceMk.raw.toLowerCase().includes('prebuilt_kernel') ||
+      S.deviceMk.raw.toLowerCase().includes('target_prebuilt_kernel') ||
+      S.tree.some(f => /prebuilt.*kernel|Image\.gz|Image|zImage|bzImage/i.test(f.path));
+    
+    // Check for kernel config files that might indicate built-in modules
+    const hasKernelConfig = S.tree.some(f => 
+      /defconfig|kernel.*config|\.config$/i.test(f.path)
+    );
+    
+    // Check fstab for wrappedkey - if not present, inlinecrypt might not be needed
+    const dataE = S.fstab.flatMap(f => f.entries).filter(e => e.mount === '/data');
+    const usesWrappedKey = dataE.some(e => e.wrapped);
+    
+    // Only warn about inlinecrypt if wrappedkey is actually used
+    const relevantModules = kernelModules.filter(mod => {
+      if(mod === 'inlinecrypt') return usesWrappedKey;
+      return true;
+    });
+    
+    const missingModules = relevantModules.filter(mod => 
+      !cmdline.includes(mod.toLowerCase())
     );
     
     if(missingModules.length > 0){
-      rc('medium',50,`Missing Kernel Module Support`,
-        `Kernel modules required for Android ${ver} encryption may not be enabled`,
-        missingModules.map(m => `Missing: ${m}`),
+      // Lower severity if prebuilt kernel is detected
+      const severity = hasPrebuiltKernel ? 'low' : 'medium';
+      const probability = hasPrebuiltKernel ? 30 : 50;
+      const note = hasPrebuiltKernel 
+        ? ' (Prebuilt kernel detected - modules may be built-in)' 
+        : (hasKernelConfig ? ' (Check kernel defconfig for CONFIG_* options)' : '');
+      
+      rc(severity, probability, `Kernel Module Support${note}`,
+        `Kernel modules for Android ${ver} encryption: ${missingModules.join(', ')}`,
+        [
+          ...(hasPrebuiltKernel ? ['Prebuilt kernel detected - skipping cmdline requirement'] : []),
+          ...missingModules.map(m => `Not in cmdline: ${m}`),
+          ...(usesWrappedKey ? ['wrappedkey_v0 detected - inlinecrypt recommended'] : [])
+        ],
         `FILE: BoardConfig.mk
 
-# Add kernel cmdline for encryption modules:
+# Add kernel cmdline for encryption modules (if using source kernel):
 + BOARD_KERNEL_CMDLINE += ${missingModules.join(' ')}
 
-# Or ensure kernel config has:
-# CONFIG_INLINE_ENCRYPTION=y
-# CONFIG_FS_ENCRYPTION=y`, ver);
+# Or verify kernel config has these options:
+# CONFIG_BLK_INLINE_ENCRYPTION=y
+# CONFIG_FS_ENCRYPTION=y
+# CONFIG_F2FS_FS_COMPRESSION=y (for f2fs_compress)
+
+# If using prebuilt kernel, ensure these are compiled in or remove the check.`, ver);
     }
   }
   
@@ -4144,45 +4214,83 @@ ${missingVintf.map(v => `+ Ensure ${v} is declared in manifest or built from sou
   if(S.androidVersion && S.androidVersion.version && S.tee.type !== 'unknown'){
     const ver = S.androidVersion.version;
     const verInitServices = VERSION_INIT_SERVICES[ver];
+    const teeType = S.tee.type;
+    const teeInfo = TEE_DB[teeType];
     
     if(verInitServices){
-      // Check TEE services
-      const teeSvcsFound = verInitServices.tee.filter(svc => 
-        S.initServices.some(s => s.name.includes(svc) || s.binary.includes(svc))
-      );
-      if(teeSvcsFound.length < verInitServices.tee.length){
-        const missing = verInitServices.tee.filter(svc => !teeSvcsFound.includes(svc));
-        rc('medium',60,'Missing TEE Service for Android Version',
-          `Expected TEE service(s) not found for Android ${ver}`,
-          missing.map(m => `Expected: ${m}`),
-          `FILE: init.recovery.*.rc
+      // Check TEE services - but be smart about it
+      // If TEE type is detected and there's already a TEE service, it's probably fine
+      const existingTeeSvcs = S.initServices.filter(s => s.isTEE);
+      
+      if(existingTeeSvcs.length === 0){
+        // No TEE service detected at all - this is a real issue
+        const expectedTee = verInitServices.tee || [];
+        rc('high',80,'Missing TEE Daemon Service',
+          `No TEE daemon service found for ${teeInfo?.name || teeType}`,
+          [
+            `TEE detected: ${teeInfo?.name || teeType}`,
+            `Expected service names: ${expectedTee.join(', ')}`,
+            'Checked all .rc files in recovery tree'
+          ],
+          `FILE: init.recovery.*.rc or init.tee.rc
 
-# Add missing TEE service:
-+ service ${missing[0]} /vendor/bin/${missing[0]}
+# Add TEE daemon service for ${teeInfo?.name || teeType}:
++ service ${teeInfo?.daemons?.[0] || 'mobicore'} /vendor/bin/${teeInfo?.daemons?.[0] || 'mobicore'}
 +     class core
 +     user root
 +     group root system
 +     disabled
-+     seclabel u:r:recovery:s0`, ver);
++     seclabel u:r:recovery:s0
++     oneshot
+
+# Start on hwservicemanager ready:
++ on property:hwservicemanager.ready=true
++     start ${teeInfo?.daemons?.[0] || 'mobicore'}`, ver);
+      } else {
+        // TEE service exists but check if it matches expected names (lower severity)
+        const teeSvcsFound = verInitServices.tee.filter(svc => 
+          existingTeeSvcs.some(s => 
+            s.name.toLowerCase().includes(svc.toLowerCase()) || 
+            s.binary.toLowerCase().includes(svc.toLowerCase())
+          )
+        );
+        
+        if(teeSvcsFound.length < verInitServices.tee.length){
+          // Warning but not critical - TEE daemon exists but name is different
+          // This is informational only
+          const found = existingTeeSvcs.map(s => s.name).join(', ');
+          // Don't create an issue - just note that alternative TEE service exists
+        }
       }
       
       // Check keymaster services
+      const existingKmSvcs = S.initServices.filter(s => s.isCrypto);
       const kmSvcsFound = verInitServices.keymaster.filter(svc => 
-        S.initServices.some(s => s.name.includes(svc) || s.binary.includes(svc))
+        existingKmSvcs.some(s => 
+          s.name.toLowerCase().includes(svc.toLowerCase()) || 
+          s.binary.toLowerCase().includes(svc.toLowerCase())
+        )
       );
-      if(kmSvcsFound.length === 0 && S.initServices.filter(s=>s.isCrypto).length === 0){
-        rc('high',75,`Android ${ver} Missing Keymaster Service`,
-          `Expected keymaster service for Android ${ver} not found`,
-          verInitServices.keymaster.map(k => `Expected: ${k}`),
+      
+      if(existingKmSvcs.length === 0){
+        // No keymaster service at all - critical
+        rc('critical',85,`Android ${ver} Missing Keymaster Service`,
+          `No keymaster service found for Android ${ver}`,
+          [
+            `Expected: ${verInitServices.keymaster.join(' or ')}`,
+            'Checked all .rc files in recovery tree'
+          ],
           `FILE: init.recovery.*.rc
 
 # Add keymaster service for Android ${ver}:
-+ service ${verInitServices.keymaster[0]} /vendor/bin/hw/android.hardware.keymaster@4.${ver >= 13 ? '1' : '0'}-service.${S.tee.type}
-+     class early_hal
++ service vendor.keymaster-${ver >= 13 ? '4-1' : '4-0'} /vendor/bin/hw/android.hardware.keymaster@4.${ver >= 13 ? '1' : '0'}-service.${teeType}
++     class ${ver >= 12 ? 'early_hal' : 'hal'}
 +     user system
 +     group system drmrpc
 +     disabled
-+     seclabel u:r:recovery:s0`, ver);
++     seclabel u:r:recovery:s0
+${ver >= 13 ? `+     interface android.hardware.keymaster@4.0::IKeymasterDevice default
++     interface android.hardware.keymaster@4.1::IKeymasterDevice default` : ''}`, ver);
       }
       
       // A15+ required services
