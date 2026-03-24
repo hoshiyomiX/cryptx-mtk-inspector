@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.15 — MTK Decrypt Inspector</title>
+<title>CryptX v3.16 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.15</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.16</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -982,13 +982,15 @@ const VERSION_INIT_SERVICES = {
     tee: ['mobicore', 'mcDriverDaemon'],
     keymaster: ['vendor.keymaster-4-1-trustonic'],
     gatekeeper: ['vendor.gatekeeper-1-0-trustonic'],  // TEE suffix added
-    optional: ['vendor.keymint-service']
+    optional: []
   },
   15: {
     tee: ['mobicore', 'mcDriverDaemon'],
-    keymaster: ['vendor.keymaster-4-1-trustonic'],
-    gatekeeper: ['vendor.gatekeeper-1-0-trustonic'],
-    required: ['vendor.keymint-service', 'android.hardware.security.keymint']  // REQUIRED for A15+
+    keymaster: ['vendor.keymaster-4-1'],  // Keymaster 4.1 service (can be any TEE variant)
+    gatekeeper: ['vendor.gatekeeper-1-0'],
+    // Note: keymint/secureclock/sharedsecret are PRODUCT_PACKAGES, NOT init services
+    // They are built from source and don't need .rc service definitions
+    optional: []
   }
 };
 
@@ -4129,41 +4131,30 @@ ${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(
   // Only run if Android version is 15+
   const isActuallyA15PlusIssues = S.androidVersion && S.androidVersion.version >= 15;
   if(isActuallyA15PlusIssues){
-    const securityPkgs = S.deviceMk.packages.filter(p => p.includes('android.hardware.security'));
-    const missingPkgs = A15_SECURITY_PACKAGES.filter(p => !securityPkgs.includes(p));
-    
-    if(missingPkgs.length > 0){
-      rc('critical',95,'A15+ Missing Security Packages',
-        `Android 15+ requires keymint/security HAL packages. Missing: ${missingPkgs.join(', ')}`,
-        [`Platform version: ${S.a15plus.platformVersion}`],
-        `FILE: device.mk
-
-# Add required A15+ security packages:
-+ PRODUCT_PACKAGES += \\
-+     android.hardware.security.keymint \\
-+     android.hardware.security.secureclock \\
-+     android.hardware.security.sharedsecret`, 15);
-    }
-    
+    // Keymaster class and interface checks (security packages checked in version-specific section above)
     const kmSvcs = S.initServices.filter(s => s.isCrypto);
     if(kmSvcs.length > 0){
-      // Check keymaster uses early_hal
-      if(kmSvcs.some(s => s.className !== 'early_hal')){
+      // Check keymaster uses early_hal (not 'hal')
+      const wrongClassKm = kmSvcs.filter(s => s.className !== 'early_hal' && s.className !== 'core');
+      if(wrongClassKm.length > 0){
         rc('high',70,'A15+ Keymaster Class Should Be early_hal',
-          'Keymaster should use class early_hal for A15+ compatibility',
-          kmSvcs.map(s => `${s.name}: class ${s.className||'not set'}`),
+          'Keymaster should use class early_hal for A15+ FBE decryption compatibility',
+          wrongClassKm.map(s => `${s.name}: class ${s.className||'not set'}`),
           `FILE: init.recovery.*.rc
 
 # Change keymaster class to early_hal:
-- service vendor.keymaster ... \n-     class hal
-+ service vendor.keymaster ... \n+     class early_hal`, 15);
+- service vendor.keymaster ... 
+-     class hal
++ service vendor.keymaster ... 
++     class early_hal`, 15);
       }
       
       // Check keymaster has interface declarations
-      if(kmSvcs.some(s => !s.interfaceDecls || s.interfaceDecls.length === 0)){
+      const kmNoInterface = kmSvcs.filter(s => !s.interfaceDecls || s.interfaceDecls.length === 0);
+      if(kmNoInterface.length > 0){
         rc('medium',60,'A15+ Keymaster Missing Interface Declarations',
           'Interface declarations are required for proper HAL registration on A15+',
-          kmSvcs.filter(s => !s.interfaceDecls?.length).map(s => s.name),
+          kmNoInterface.map(s => `${s.name}: No interface declarations`),
           `FILE: init.recovery.*.rc
 
 # Add interface declarations to keymaster service:
@@ -4496,69 +4487,61 @@ ${ver >= 13 ? `+     interface android.hardware.keymaster@4.0::IKeymasterDevice 
 +     interface android.hardware.keymaster@4.1::IKeymasterDevice default` : ''}`, ver);
       }
       
-      // A15+ required services
-      if(verInitServices.required && ver >= 15){
-        // Check each required service individually with proper matching
-        // Note: A single keymint service can provide multiple interfaces (keymint, secureclock, sharedsecret)
-        const reqSvcsFound = verInitServices.required.filter(svc => {
-          // Normalize service name for matching
-          const svcLower = svc.toLowerCase();
-          const svcShortName = svcLower.split('.').pop(); // e.g., 'keymint' from 'android.hardware.security.keymint'
+      // A15+ security package check (PRODUCT_PACKAGES, NOT init services)
+      // Reference: https://github.com/naden01/tecno_LH8n-TWRP
+      // A15+ uses keymaster@4.1 service in .rc with keymint packages built from source
+      if(ver >= 15){
+        const securityPkgs = S.deviceMk.packages.filter(p => 
+          p.includes('android.hardware.security.keymint') ||
+          p.includes('android.hardware.security.secureclock') ||
+          p.includes('android.hardware.security.sharedsecret')
+        );
+        
+        const hasKeymint = securityPkgs.some(p => p.includes('keymint'));
+        const hasSecureClock = securityPkgs.some(p => p.includes('secureclock'));
+        const hasSharedSecret = securityPkgs.some(p => p.includes('sharedsecret'));
+        
+        // Check if all three security packages are present
+        if(!hasKeymint || !hasSecureClock || !hasSharedSecret){
+          const missing = [];
+          if(!hasKeymint) missing.push('android.hardware.security.keymint');
+          if(!hasSecureClock) missing.push('android.hardware.security.secureclock');
+          if(!hasSharedSecret) missing.push('android.hardware.security.sharedsecret');
           
-          return S.initServices.some(s => {
-            const nameLower = s.name.toLowerCase();
-            const binaryLower = s.binary.toLowerCase();
-            const interfaces = s.interfaceDecls || [];
-            
-            // Match by full service name or short name in service name/binary
-            const nameMatches = nameLower.includes(svcLower) || nameLower.includes(svcShortName);
-            const binaryMatches = binaryLower.includes(svcLower) || binaryLower.includes(svcShortName);
-            
-            // Check if service declares this interface
-            const interfaceMatches = interfaces.some(i => {
-              const iLower = i.toLowerCase();
-              return iLower.includes(svcShortName) || 
-                     // Handle "ISecureClock" matching "secureclock"
-                     iLower.includes(svcShortName.replace('security.', ''));
-            });
-            
-            return nameMatches || binaryMatches || interfaceMatches;
-          });
-        });
-        
-        // Special case: if a keymint service has all three interface declarations,
-        // it satisfies all required services
-        const keymintWithAllInterfaces = S.initServices.some(s => {
-          const interfaces = (s.interfaceDecls || []).map(i => i.toLowerCase());
-          return interfaces.some(i => i.includes('keymint')) &&
-                 interfaces.some(i => i.includes('secureclock')) &&
-                 interfaces.some(i => i.includes('sharedsecret'));
-        });
-        
-        const allFound = keymintWithAllInterfaces || reqSvcsFound.length >= verInitServices.required.length;
-        
-        if(!allFound){
-          const missing = verInitServices.required.filter(s => !reqSvcsFound.includes(s));
-          rc('critical',85,'Android 15+ Missing Required Keymint Services',
-            `Android 15+ requires Keymint, SecureClock, and SharedSecret services for FBE decryption. A single keymint service can provide all three interfaces.`,
-            missing.map(s => `Missing: ${s}`),
+          rc('critical',85,'Android 15+ Missing Security Packages',
+            `Android 15+ requires keymint, secureclock, and sharedsecret packages. These are built from source via PRODUCT_PACKAGES.`,
+            missing.map(m => `Missing: ${m}`),
             `FILE: device.mk
 
-# Android 15+ requires these security packages:
-+ PRODUCT_PACKAGES += android.hardware.security.keymint-service
+# Android 15+ requires these security packages (built from source):
++ PRODUCT_PACKAGES += android.hardware.security.keymint
++ PRODUCT_PACKAGES += android.hardware.security.secureclock
++ PRODUCT_PACKAGES += android.hardware.security.sharedsecret
 
-FILE: init.recovery.*.rc
+# Also ensure keymaster 4.1 is included:
++ PRODUCT_PACKAGES += android.hardware.keymaster@4.1
++ TARGET_RECOVERY_DEVICE_MODULES += android.hardware.keymaster@4.1`, 15);
+        }
+        
+        // Check keymaster service has proper interface declarations
+        const kmSvcs = S.initServices.filter(s => s.isCrypto);
+        if(kmSvcs.length > 0){
+          // Check for interface declarations (important for A15+)
+          const kmWithoutInterfaces = kmSvcs.filter(s => !s.interfaceDecls || s.interfaceDecls.length === 0);
+          if(kmWithoutInterfaces.length > 0){
+            rc('high',70,'Android 15+ Keymaster Missing Interface Declarations',
+              'Keymaster service should declare interfaces for proper HAL registration on A15+',
+              kmWithoutInterfaces.map(s => `${s.name}: No interface declarations`),
+              `FILE: init.recovery.*.rc
 
-# Add keymint service with all required interfaces:
-+ service vendor.keymint-service /vendor/bin/hw/android.hardware.security.keymint-service
-+     class early_hal
-+     user nobody
-+     group system drmrpc
-+     disabled
-+     seclabel u:r:recovery:s0
-+     interface android.hardware.security.keymint::IKeyMintDevice default
-+     interface android.hardware.security.secureclock::ISecureClock default
-+     interface android.hardware.security.sharedsecret::ISharedSecret default`, 15);
+# Add interface declarations to keymaster service:
+  service vendor.keymaster-4-1 /vendor/bin/hw/android.hardware.keymaster@4.1-service.trustonic
++     interface android.hardware.keymaster@4.0::IKeymasterDevice default
++     interface android.hardware.keymaster@4.1::IKeymasterDevice default
+      class early_hal
+      user nobody
+      seclabel u:r:recovery:s0`, 15);
+          }
         }
       }
     }
