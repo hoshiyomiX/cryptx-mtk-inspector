@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.3 — MTK Decrypt Inspector</title>
+<title>CryptX v3.4 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.3</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.4</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -3539,7 +3539,17 @@ function analyzeRootCauses(){
 
   const tee=S.tee.type,sig=TEE_DB[tee];
 
-  function rc(sev,prob,title,desc,evidence,fix){S.rootCauses.push({severity:sev,probability:prob,title,description:desc,evidence:evidence||[],fix:fix||''});}
+  function rc(sev,prob,title,desc,evidence,fix,androidVersion=null){
+    S.rootCauses.push({
+      severity:sev,
+      probability:prob,
+      title,
+      description:desc,
+      evidence:evidence||[],
+      fix:fix||'',
+      androidVersion:androidVersion
+    });
+  }
 
   const missingBins=S.binaryChecks.filter(b=>b.status==='missing'&&b.isCritical);
 
@@ -3703,7 +3713,7 @@ Add: ${missingBins.map(b=>b.binName).join('\nAdd: ')}
         `FILE: BoardConfig.mk
 
 # Android ${ver} required flags:
-${missingFlags.map(f => `+ ${f} := true`).join('\n')}`);
+${missingFlags.map(f => `+ ${f} := true`).join('\n')}`, ver);
     }
     
     // Check for deprecated flags that should be removed
@@ -3715,7 +3725,7 @@ ${missingFlags.map(f => `+ ${f} := true`).join('\n')}`);
         `FILE: BoardConfig.mk
 
 # Android ${ver}: Remove these deprecated flags:
-${deprecatedFlags.map(f => `- ${f} := ${bc[f]}`).join('\n')}`);
+${deprecatedFlags.map(f => `- ${f} := ${bc[f]}`).join('\n')}`, ver);
     }
     
     // Check service classes for version compliance
@@ -3731,7 +3741,7 @@ ${deprecatedFlags.map(f => `- ${f} := ${bc[f]}`).join('\n')}`);
 # Android ${ver} keymaster class:
   service keymaster-4-1 /vendor/bin/hw/android.hardware.keymaster@4.1-service.trustonic
 -     class ${wrongClassKm[0].className || 'hal'}
-+     class ${verServiceClass.keymaster}`);
++     class ${verServiceClass.keymaster}`, ver);
       }
     }
     
@@ -3753,7 +3763,7 @@ ${deprecatedFlags.map(f => `- ${f} := ${bc[f]}`).join('\n')}`);
 ${missingVerLibs.map(l => `+     ${l}`).join(' \\\n')}
 
 + RECOVERY_LIBRARY_SOURCE_FILES += \\
-${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(' \\\n')}`);
+${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(' \\\n')}`, ver);
     }
     
     // Version-specific Keymaster version check
@@ -3778,7 +3788,7 @@ ${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(
   service keymaster-4-1 /vendor/bin/hw/android.hardware.keymaster@4.1-service.trustonic
 +     interface android.hardware.keymaster@4.0::IKeymasterDevice default
 +     interface android.hardware.keymaster@4.1::IKeymasterDevice default
-      class early_hal`);
+      class early_hal`, ver);
       }
     }
     
@@ -3796,7 +3806,7 @@ ${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(
 + /data f2fs /dev/block/by-name/userdata flags=fileencryption=aes-256-xts:aes-256-cts:v2
 
 # Or v3 for newer devices:
-+ /data f2fs /dev/block/by-name/userdata flags=fileencryption=aes-256-xts:aes-256-cts:v3`);
++ /data f2fs /dev/block/by-name/userdata flags=fileencryption=aes-256-xts:aes-256-cts:v3`, ver);
       }
     }
   }
@@ -3816,7 +3826,7 @@ ${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(
 + PRODUCT_PACKAGES += \\
 +     android.hardware.security.keymint \\
 +     android.hardware.security.secureclock \\
-+     android.hardware.security.sharedsecret`);
++     android.hardware.security.sharedsecret`, 15);
     }
     
     const kmSvcs = S.initServices.filter(s => s.isCrypto);
@@ -3830,7 +3840,7 @@ ${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(
 
 # Change keymaster class to early_hal:
 - service vendor.keymaster ... \n-     class hal
-+ service vendor.keymaster ... \n+     class early_hal`);
++ service vendor.keymaster ... \n+     class early_hal`, 15);
       }
       
       // Check keymaster has interface declarations
@@ -3844,7 +3854,7 @@ ${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(
   service vendor.keymaster-4-1-trustonic /vendor/bin/hw/android.hardware.keymaster@4.1-service.trustonic
 +     interface android.hardware.keymaster@4.0::IKeymasterDevice default
 +     interface android.hardware.keymaster@4.1::IKeymasterDevice default
-      class early_hal`);
+      class early_hal`, 15);
       }
     }
     
@@ -3856,7 +3866,7 @@ ${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(
         `FILE: BoardConfig.mk
 
 # Add to prevent secure erase issues:
-+ BOARD_SUPPRESS_SECURE_ERASE := true`);
++ BOARD_SUPPRESS_SECURE_ERASE := true`, 15);
     }
   }
   
@@ -3998,7 +4008,7 @@ ${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(
           `FILE: manifest.xml or device.mk
 
 # Android ${ver} required VINTF declarations:
-${missingVintf.map(v => `+ Ensure ${v} is declared in manifest or built from source`).join('\n')}`);
+${missingVintf.map(v => `+ Ensure ${v} is declared in manifest or built from source`).join('\n')}`, ver);
       }
       
       // A15+ Keymint check
@@ -4014,7 +4024,7 @@ ${missingVintf.map(v => `+ Ensure ${v} is declared in manifest or built from sou
 + PRODUCT_PACKAGES += \\
 +     android.hardware.security.keymint \\
 +     android.hardware.security.secureclock \\
-+     android.hardware.security.sharedsecret`);
++     android.hardware.security.sharedsecret`, 15);
         }
       }
     }
@@ -4041,7 +4051,7 @@ ${missingVintf.map(v => `+ Ensure ${v} is declared in manifest or built from sou
 
 # Or ensure kernel config has:
 # CONFIG_INLINE_ENCRYPTION=y
-# CONFIG_FS_ENCRYPTION=y`);
+# CONFIG_FS_ENCRYPTION=y`, ver);
     }
   }
   
@@ -4068,7 +4078,7 @@ ${missingVintf.map(v => `+ Ensure ${v} is declared in manifest or built from sou
 +     user root
 +     group root system
 +     disabled
-+     seclabel u:r:recovery:s0`);
++     seclabel u:r:recovery:s0`, ver);
       }
       
       // Check keymaster services
@@ -4087,7 +4097,7 @@ ${missingVintf.map(v => `+ Ensure ${v} is declared in manifest or built from sou
 +     user system
 +     group system drmrpc
 +     disabled
-+     seclabel u:r:recovery:s0`);
++     seclabel u:r:recovery:s0`, ver);
       }
       
       // A15+ required services
@@ -4111,7 +4121,7 @@ ${missingVintf.map(v => `+ Ensure ${v} is declared in manifest or built from sou
 +     class early_hal
 +     user nobody
 +     group system drmrpc
-+     seclabel u:r:recovery:s0`);
++     seclabel u:r:recovery:s0`, 15);
         }
       }
     }
@@ -5497,35 +5507,93 @@ function renderIssues(){
 
     document.getElementById('tab-issues').innerHTML=h;return;}
 
-  for(const rc of S.rootCauses){
-
-    const cls=rc.severity==='critical'?'rc-critical':rc.severity==='high'?'rc-high':'rc-medium';
-
-    const col=rc.severity==='critical'?'var(--md-error)':rc.severity==='high'?'var(--md-warning)':'var(--md-tertiary)';
-
-    h+=`<div class="rc-card ${cls}"><div style="display:flex;justify-content:space-between;align-items:start;gap:12px;margin-bottom:8px">
-
-      <div class="title-small">${rc.title}</div>
-
-      <span class="md-chip" style="background:${col}20;color:${col};border:none;flex-shrink:0">${rc.probability}% likely</span></div>
-
-      <div class="body-small" style="color:var(--md-on-surface-variant);margin-bottom:12px">${esc(rc.description)}</div>`;
-
-    if(rc.evidence.length>0)h+=`<div style="margin-bottom:12px"><div class="label-small" style="color:var(--md-outline);margin-bottom:4px">Evidence:</div>
-
-      ${rc.evidence.map(e=>`<div class="body-small path-text" style="color:var(--md-on-surface-variant);padding-left:12px;border-left:2px solid var(--md-outline-variant);margin:4px 0">${esc(e)}</div>`).join('')}</div>`;
-
-    if(rc.fix)h+=`<div class="diff-block">
-      <div class="diff-header"><span class="mi" style="font-size:16px;vertical-align:middle">lightbulb</span> Suggested Fix</div>
-      ${renderGitHubDiff(rc.fix)}
-    </div>`;
-
+  // Group issues by Android version
+  const generalIssues = [];
+  const versionIssues = {};
+  
+  for(const issue of S.rootCauses){
+    if(issue.androidVersion){
+      const ver = issue.androidVersion;
+      if(!versionIssues[ver]) versionIssues[ver] = [];
+      versionIssues[ver].push(issue);
+    } else {
+      generalIssues.push(issue);
+    }
+  }
+  
+  // Version badge colors
+  const verColors = {
+    11: '#4CAF50', 12: '#64B5F6', '12L': '#4285F4', 13: '#00BCD4',
+    14: '#FF5722', 15: '#9C27B0', 16: '#00BFA5'
+  };
+  
+  // Render general issues first
+  if(generalIssues.length > 0){
+    h+=`<div class="validation-category" style="background:var(--md-surface-container-high);margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <span class="mi" style="color:var(--md-primary)">error_outline</span>
+        <span class="label-large" style="color:var(--md-on-surface)">General Issues</span>
+        <span class="md-chip" style="font-size:11px;background:var(--md-error)20;color:var(--md-error)">${generalIssues.length}</span>
+      </div>`;
+    
+    for(const rc of generalIssues){
+      h+=renderIssueCard(rc);
+    }
     h+=`</div>`;
-
+  }
+  
+  // Render version-specific issues grouped by Android version
+  const sortedVersions = Object.keys(versionIssues).map(Number).sort((a,b)=>b-a);
+  
+  for(const ver of sortedVersions){
+    const issues = versionIssues[ver];
+    const verColor = verColors[ver] || 'var(--md-primary)';
+    const verInfo = ANDROID_VERSIONS[ver] || { name: `Android ${ver}` };
+    
+    h+=`<div class="validation-category" style="margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        <span class="mi" style="color:${verColor}">android</span>
+        <span class="label-large" style="color:${verColor}">${verInfo.name}</span>
+        <span class="md-chip" style="font-size:11px;background:${verColor}20;color:${verColor}">${issues.length} issue${issues.length>1?'s':''}</span>
+        <span class="md-chip chip-error" style="font-size:10px;">Version-Specific</span>
+      </div>`;
+    
+    for(const rc of issues){
+      h+=renderIssueCard(rc);
+    }
+    h+=`</div>`;
   }
 
   document.getElementById('tab-issues').innerHTML=h;
 
+}
+
+function renderIssueCard(rc){
+  const cls=rc.severity==='critical'?'rc-critical':rc.severity==='high'?'rc-high':'rc-medium';
+  const col=rc.severity==='critical'?'var(--md-error)':rc.severity==='high'?'var(--md-warning)':'var(--md-tertiary)';
+  
+  let card=`<div class="rc-card ${cls}" style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:start;gap:12px;margin-bottom:8px;flex-wrap:wrap;">
+
+    <div class="title-small">${esc(rc.title)}</div>
+
+    <div style="display:flex;gap:6px;flex-shrink:0;">
+      ${rc.severity==='critical'?'<span class="md-chip chip-error" style="font-size:10px;">CRITICAL</span>':''}
+      <span class="md-chip" style="background:${col}20;color:${col};border:none;">${rc.probability}% likely</span>
+    </div></div>
+
+    <div class="body-small" style="color:var(--md-on-surface-variant);margin-bottom:12px">${esc(rc.description)}</div>`;
+
+  if(rc.evidence.length>0)card+=`<div style="margin-bottom:12px"><div class="label-small" style="color:var(--md-outline);margin-bottom:4px">Evidence:</div>
+
+    ${rc.evidence.map(e=>`<div class="body-small path-text" style="color:var(--md-on-surface-variant);padding-left:12px;border-left:2px solid var(--md-outline-variant);margin:4px 0">${esc(e)}</div>`).join('')}</div>`;
+
+  if(rc.fix)card+=`<div class="diff-block">
+    <div class="diff-header"><span class="mi" style="font-size:16px;vertical-align:middle">lightbulb</span> Suggested Fix</div>
+    ${renderGitHubDiff(rc.fix)}
+  </div>`;
+
+  card+=`</div>`;
+  return card;
 }
 
 function renderBinCheck(){
