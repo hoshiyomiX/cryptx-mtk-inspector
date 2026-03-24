@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.12 — MTK Decrypt Inspector</title>
+<title>CryptX v3.13 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.12</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.13</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -2564,16 +2564,20 @@ function detectRecoveryLibs(){
   const sourceFiles = [];
   
   // Parse TARGET_RECOVERY_DEVICE_MODULES from all .mk files
-  const modulesMatches = combinedContent.matchAll(/TARGET_RECOVERY_DEVICE_MODULES\s*[:+?]?=\s*([^\n]+(?:\\[\s\S]*?[^\n]+)*)/gi);
+  // Pattern captures multiline values with backslash continuation until blank line or new variable
+  const modulesMatches = combinedContent.matchAll(/TARGET_RECOVERY_DEVICE_MODULES\s*[:+?]?=\s*([\s\S]*?)(?=\n\n|\n[A-Z_][A-Z_0-9]*\s*[:+?]?=|$)/gi);
   for(const m of modulesMatches){
-    const mods = m[1].replace(/\\\n/g, ' ').trim().split(/\s+/).filter(x=>x&&x!=='\\');
+    // Remove backslash-newline continuation and split by whitespace
+    const mods = m[1].replace(/\\\s*\n/g, ' ').trim().split(/\s+/).filter(x=>x&&x!=='\\');
     modules.push(...mods);
   }
-  
+
   // Parse RECOVERY_LIBRARY_SOURCE_FILES from all .mk files
-  const sourceMatches = combinedContent.matchAll(/RECOVERY_LIBRARY_SOURCE_FILES\s*[:+?]?=\s*([^\n]+(?:\\[\s\S]*?[^\n]+)*)/gi);
+  const sourceMatches = combinedContent.matchAll(/RECOVERY_LIBRARY_SOURCE_FILES\s*[:+?]?=\s*([\s\S]*?)(?=\n\n|\n[A-Z_][A-Z_0-9]*\s*[:+?]?=|$)/gi);
   for(const m of sourceMatches){
-    const srcs = m[1].replace(/\\\n/g, ' ').trim().split(/\s+/).filter(x=>x&&x!=='\\');
+    // Remove backslash-newline continuation and split by whitespace
+    // Also normalize .so extension and path prefixes for matching
+    const srcs = m[1].replace(/\\\s*\n/g, ' ').trim().split(/\s+/).filter(x=>x&&x!=='\\');
     sourceFiles.push(...srcs);
   }
   
@@ -2777,8 +2781,18 @@ function parseInitServices(){
           isHAL:false,isTEE:false,isCrypto:false,isGK:false,teeType:null};
 
         const n=(sm[1]+' '+sm[2]).toLowerCase();
+        const serviceName = sm[1].toLowerCase();
+        const binaryPath = sm[2].toLowerCase();
 
-        if(/keymaster|keymint|km4|strongbox/i.test(n))cur.isCrypto=true;
+        // Exclude helper/wait services from being classified as keymaster
+        const isHelperService = /^(wait_for_|wait-|start_|stop_|trigger_|check_|init_)/i.test(serviceName);
+        const isActualKmHal = /android\.hardware\.keymaster|android\.hardware\.security\.keymint|keymaster@\d|keymint-service/i.test(binaryPath);
+        const isKmServiceName = /^(vendor\.keymaster|vendor\.keymint|keymaster-\d|keymint)/i.test(serviceName);
+
+        // Only mark as keymaster if it's an actual HAL service, not a helper utility
+        if(!isHelperService && (isActualKmHal || isKmServiceName || (/keymaster|keymint/i.test(n) && !isHelperService))){
+          cur.isCrypto=true;
+        }
 
         if(/gatekeeper/i.test(n))cur.isGK=true;
 
@@ -3738,11 +3752,24 @@ function getActualFileSnippet(filePattern, maxLines = 50, serviceName = null){
 }
 
 // Helper: Check if a line already exists in file content
-function lineExistsInFile(content, searchPattern){
+// Uses exact match for property lines (like "class hal"), partial match for others
+function lineExistsInFile(content, searchPattern, exactMatch = false){
   if(!content) return false;
   const pattern = searchPattern.toLowerCase().trim();
   const lines = content.split('\n');
-  return lines.some(line => line.toLowerCase().trim().includes(pattern));
+
+  // For property-like patterns (class, user, group, etc.), use exact match
+  const isPropertyPattern = /^(class|user|group|seclabel|disabled|oneshot|interface)\s/i.test(pattern);
+  const useExact = exactMatch || isPropertyPattern;
+
+  return lines.some(line => {
+    const trimmed = line.toLowerCase().trim();
+    if(useExact){
+      // Exact match: "class hal" only matches "class hal", not "class hal_force" or "# class hal"
+      return trimmed === pattern;
+    }
+    return trimmed.includes(pattern);
+  });
 }
 
 // Helper: Generate smart diff with actual file context
@@ -3751,9 +3778,11 @@ function generateSmartFix(fixInfo){
 
   // If no actual edits needed (all additions already present)
   if(additions && additions.length > 0 && actualContent){
-    const allPresent = additions.every(add =>
-      lineExistsInFile(actualContent, add.replace(/^[+]\s*/, '').trim())
-    );
+    const allPresent = additions.every(add => {
+      const cleanAdd = add.replace(/^[+]\s*/, '').trim();
+      // Use exact match for property lines
+      return lineExistsInFile(actualContent, cleanAdd, true);
+    });
     if(allPresent){
       return { diff: '', needsEdit: false, reason: 'All changes already applied' };
     }
@@ -6044,55 +6073,64 @@ function validateAndRenderFix(rc){
     if(snippet.exists && snippet.content){
       // For class-related issues, check if the SPECIFIC service has the correct class
       const isClassFix = additions.some(a => a.trim().startsWith('class '));
-      
-      if(isClassFix && serviceName){
-        // Find the service in the file and check its class
-        const serviceRegex = new RegExp(`service\\s+${serviceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s`, 'i');
-        const lines = snippet.content.split('\n');
-        let serviceStartIdx = -1;
-        let currentClass = null;
-        
-        // Find service definition
-        for(let i = 0; i < lines.length; i++){
-          if(serviceRegex.test(lines[i])){
-            serviceStartIdx = i;
-            // Look for class line within next 20 lines
-            for(let j = i; j < Math.min(i + 20, lines.length); j++){
-              const classMatch = lines[j].match(/^\s*class\s+(\S+)/);
-              if(classMatch){
-                currentClass = classMatch[1];
-                break;
+
+      if(isClassFix){
+        // Class fixes require serviceName to validate properly
+        if(serviceName){
+          // Find the service in the file and check its class
+          const serviceRegex = new RegExp(`service\\s+${serviceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s`, 'i');
+          const fileLines = snippet.content.split('\n');
+          let serviceStartIdx = -1;
+          let currentClass = null;
+
+          // Find service definition
+          for(let i = 0; i < fileLines.length; i++){
+            if(serviceRegex.test(fileLines[i])){
+              serviceStartIdx = i;
+              // Look for class line within next 20 lines
+              for(let j = i; j < Math.min(i + 20, fileLines.length); j++){
+                const classMatch = fileLines[j].match(/^\s*class\s+(\S+)/);
+                if(classMatch){
+                  currentClass = classMatch[1];
+                  break;
+                }
+                // Stop if we hit another service definition
+                if(j > i && /^\s*service\s+\S+\s+\//.test(fileLines[j])){
+                  break;
+                }
               }
-              // Stop if we hit another service definition
-              if(j > i && /^\s*service\s+\S+\s+\//.test(lines[j])){
-                break;
-              }
+              break;
             }
-            break;
           }
+
+          // Extract the expected class from additions
+          const expectedClassMatch = additions.find(a => a.trim().startsWith('class '));
+          const expectedClass = expectedClassMatch ? expectedClassMatch.trim().replace('class ', '').trim() : null;
+
+          // Check if the service already has the correct class
+          if(expectedClass && currentClass === expectedClass){
+            return { html: '', noEditNeeded: true, reason: `Service '${serviceName}' already has class '${expectedClass}' in ${snippet.path}` };
+          }
+
+          // Service exists but class is wrong/missing - show diff
+          return {
+            html: renderSmartDiff(snippet, additions, removals, context, targetFile, serviceName),
+            noEditNeeded: false
+          };
+        } else {
+          // Class fix but no serviceName - can't validate, show diff directly
+          return {
+            html: renderSmartDiff(snippet, additions, removals, context, targetFile, null),
+            noEditNeeded: false
+          };
         }
-        
-        // Extract the expected class from additions
-        const expectedClassMatch = additions.find(a => a.trim().startsWith('class '));
-        const expectedClass = expectedClassMatch ? expectedClassMatch.trim().replace('class ', '').trim() : null;
-        
-        // Check if the service already has the correct class
-        if(expectedClass && currentClass === expectedClass){
-          return { html: '', noEditNeeded: true, reason: `Service '${serviceName}' already has class '${expectedClass}' in ${snippet.path}` };
-        }
-        
-        // Service exists but class is wrong/missing - show diff
-        return {
-          html: renderSmartDiff(snippet, additions, removals, context, targetFile, serviceName),
-          noEditNeeded: false
-        };
       }
-      
-      // Non-class fixes: check if additions already exist anywhere
+
+      // Non-class fixes: check if additions already exist anywhere (with exact match)
       const allPresent = additions.every(add => {
         const cleanAdd = add.trim();
-        // For non-class lines, check if the full line exists
-        return lineExistsInFile(snippet.content, cleanAdd);
+        // Use exact match to avoid false positives
+        return lineExistsInFile(snippet.content, cleanAdd, true);
       });
 
       if(allPresent){
