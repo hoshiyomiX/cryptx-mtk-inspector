@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.9 — MTK Decrypt Inspector</title>
+<title>CryptX v3.10 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.9</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.10</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -3620,12 +3620,15 @@ function computeVerdict(){
 
 // Helper: Get actual file content snippet for a given file pattern
 function getActualFileSnippet(filePattern, maxLines = 50){
-  // Find matching file in tree
+  // Find matching file in tree with priority-based matching
   const pattern = filePattern.toLowerCase();
   let matchedFile = null;
-  let matchedContent = '';
 
-  // Check various file categories
+  // Extract key identifiers from pattern (e.g., "BoardConfig.mk", "device.mk", "init.recovery")
+  const patternBasename = pattern.split('/').pop(); // Get filename part
+  const patternName = patternBasename.replace(/\.[^.]+$/, ''); // Remove extension
+
+  // Priority 1: Exact filename match
   const allFiles = [
     ...(S.files.boardconfig || []),
     ...(S.files.mk || []),
@@ -3635,15 +3638,53 @@ function getActualFileSnippet(filePattern, maxLines = 50){
     ...(S.files.prop || [])
   ];
 
+  // First pass: exact filename match
   for(const fp of allFiles){
-    const fileName = fp.toLowerCase().split('/').pop();
-    const filePath = fp.toLowerCase();
-
-    // Match by pattern
-    if(fileName.includes(pattern) || filePath.includes(pattern) ||
-       pattern.includes(fileName.replace(/\.[^.]+$/, ''))){
+    const fileName = fp.split('/').pop().toLowerCase();
+    if(fileName === patternBasename || fileName === pattern){
       matchedFile = fp;
       break;
+    }
+  }
+
+  // Second pass: filename contains pattern (for patterns like "device.mk")
+  if(!matchedFile){
+    for(const fp of allFiles){
+      const fileName = fp.split('/').pop().toLowerCase();
+      if(fileName.includes(patternBasename) || patternBasename.includes(fileName.replace(/\.[^.]+$/, ''))){
+        matchedFile = fp;
+        break;
+      }
+    }
+  }
+
+  // Third pass: path-based match for init.recovery.*.rc patterns
+  if(!matchedFile && pattern.includes('init.recovery')){
+    for(const fp of (S.files.initrc || [])){
+      const fn = fp.toLowerCase();
+      if(fn.includes('init.recovery') || fn.includes('init.tee')){
+        matchedFile = fp;
+        break;
+      }
+    }
+  }
+
+  // Fourth pass: BoardConfig special handling
+  if(!matchedFile && pattern.includes('boardconfig')){
+    const bcFiles = S.files.boardconfig || [];
+    if(bcFiles.length > 0){
+      matchedFile = bcFiles[0]; // Use first BoardConfig file
+    }
+  }
+
+  // Fifth pass: device.mk handling
+  if(!matchedFile && (pattern.includes('device.mk') || pattern.includes('device'))){
+    for(const fp of (S.files.mk || [])){
+      const fn = fp.split('/').pop().toLowerCase();
+      if(fn === 'device.mk' || fn.includes('device')){
+        matchedFile = fp;
+        break;
+      }
     }
   }
 
@@ -5959,7 +6000,7 @@ function validateAndRenderFix(rc){
 
 // Render diff with actual file content context
 function renderSmartDiff(snippet, additions, context, targetFile){
-  let html = '';
+  let html = '<div class="diff-body">';
 
   // Show actual file header
   html += `<div class="diff-file-header">
@@ -5969,26 +6010,20 @@ function renderSmartDiff(snippet, additions, context, targetFile){
   </div>`;
 
   // Show relevant existing content (last few lines before edit point)
-  const existingLines = (snippet.lines || []).slice(-15);
-  if(existingLines.length > 0){
-    html += `<div style="padding:8px 16px;background:var(--md-surface-container-lowest);border-bottom:1px solid var(--md-outline-variant);">
-      <div class="label-small" style="color:var(--md-outline);margin-bottom:4px">Current content:</div>
-    </div>`;
-    for(const line of existingLines.slice(0, 8)){
-      if(line && line.trim()){
-        html += `<div class="diff-line diff-context">
-          <span class="diff-line-num">•</span>
-          <span>${esc(line)}</span>
-        </div>`;
-      }
+  const existingLines = (snippet.lines || []).slice(-10);
+  let lineNum = Math.max(1, (snippet.lines || []).length - 10);
+  for(const line of existingLines){
+    if(line !== undefined && line !== null){
+      html += `<div class="diff-line diff-context">
+        <span class="diff-line-num">${lineNum}</span>
+        <span>${esc(line)}</span>
+      </div>`;
+      lineNum++;
     }
   }
 
   // Show what needs to be added
   if(additions.length > 0){
-    html += `<div style="padding:8px 16px;background:color-mix(in srgb,var(--md-success)10%,transparent);border-bottom:1px solid var(--md-outline-variant);">
-      <div class="label-small" style="color:var(--md-success)">Add these lines:</div>
-    </div>`;
     for(const add of additions){
       html += `<div class="diff-line diff-add">
         <span class="diff-line-num">+</span>
@@ -5997,6 +6032,7 @@ function renderSmartDiff(snippet, additions, context, targetFile){
     }
   }
 
+  html += '</div>';
   return html;
 }
 
