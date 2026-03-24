@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.14 — MTK Decrypt Inspector</title>
+<title>CryptX v3.15 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.14</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.15</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -4498,26 +4498,67 @@ ${ver >= 13 ? `+     interface android.hardware.keymaster@4.0::IKeymasterDevice 
       
       // A15+ required services
       if(verInitServices.required && ver >= 15){
-        const reqSvcsFound = verInitServices.required.filter(svc =>
-          S.initServices.some(s => s.name.toLowerCase().includes(svc.toLowerCase()) || 
-                                    s.binary.toLowerCase().includes(svc.toLowerCase()) ||
-                                    s.name.toLowerCase().includes('keymint'))
-        );
-        if(reqSvcsFound.length < verInitServices.required.length){
+        // Check each required service individually with proper matching
+        // Note: A single keymint service can provide multiple interfaces (keymint, secureclock, sharedsecret)
+        const reqSvcsFound = verInitServices.required.filter(svc => {
+          // Normalize service name for matching
+          const svcLower = svc.toLowerCase();
+          const svcShortName = svcLower.split('.').pop(); // e.g., 'keymint' from 'android.hardware.security.keymint'
+          
+          return S.initServices.some(s => {
+            const nameLower = s.name.toLowerCase();
+            const binaryLower = s.binary.toLowerCase();
+            const interfaces = s.interfaceDecls || [];
+            
+            // Match by full service name or short name in service name/binary
+            const nameMatches = nameLower.includes(svcLower) || nameLower.includes(svcShortName);
+            const binaryMatches = binaryLower.includes(svcLower) || binaryLower.includes(svcShortName);
+            
+            // Check if service declares this interface
+            const interfaceMatches = interfaces.some(i => {
+              const iLower = i.toLowerCase();
+              return iLower.includes(svcShortName) || 
+                     // Handle "ISecureClock" matching "secureclock"
+                     iLower.includes(svcShortName.replace('security.', ''));
+            });
+            
+            return nameMatches || binaryMatches || interfaceMatches;
+          });
+        });
+        
+        // Special case: if a keymint service has all three interface declarations,
+        // it satisfies all required services
+        const keymintWithAllInterfaces = S.initServices.some(s => {
+          const interfaces = (s.interfaceDecls || []).map(i => i.toLowerCase());
+          return interfaces.some(i => i.includes('keymint')) &&
+                 interfaces.some(i => i.includes('secureclock')) &&
+                 interfaces.some(i => i.includes('sharedsecret'));
+        });
+        
+        const allFound = keymintWithAllInterfaces || reqSvcsFound.length >= verInitServices.required.length;
+        
+        if(!allFound){
+          const missing = verInitServices.required.filter(s => !reqSvcsFound.includes(s));
           rc('critical',85,'Android 15+ Missing Required Keymint Services',
-            `Android 15+ requires Keymint services for FBE decryption`,
-            verInitServices.required.filter(s => !reqSvcsFound.includes(s)),
-            `FILE: device.mk and init.recovery.*.rc
+            `Android 15+ requires Keymint, SecureClock, and SharedSecret services for FBE decryption. A single keymint service can provide all three interfaces.`,
+            missing.map(s => `Missing: ${s}`),
+            `FILE: device.mk
 
-# Android 15+ requires Keymint:
+# Android 15+ requires these security packages:
 + PRODUCT_PACKAGES += android.hardware.security.keymint-service
 
-# In init.recovery.*.rc:
+FILE: init.recovery.*.rc
+
+# Add keymint service with all required interfaces:
 + service vendor.keymint-service /vendor/bin/hw/android.hardware.security.keymint-service
 +     class early_hal
 +     user nobody
 +     group system drmrpc
-+     seclabel u:r:recovery:s0`, 15);
++     disabled
++     seclabel u:r:recovery:s0
++     interface android.hardware.security.keymint::IKeyMintDevice default
++     interface android.hardware.security.secureclock::ISecureClock default
++     interface android.hardware.security.sharedsecret::ISharedSecret default`, 15);
         }
       }
     }
@@ -6020,11 +6061,18 @@ function validateAndRenderFix(rc){
   let additions = [];
   let removals = [];
   let context = [];
+  let fileSections = []; // Track multiple FILE: sections
 
   for(const line of lines){
     // Detect file pattern
     const fileMatch = line.match(/^(?:FILE|file|File)[:\s]+(.+)$/);
     if(fileMatch){
+      // If we already have a file section, save it before starting new one
+      if(targetFile && (additions.length > 0 || context.length > 0)){
+        fileSections.push({ file: targetFile, additions: [...additions], context: [...context] });
+        additions = [];
+        context = [];
+      }
       targetFile = fileMatch[1].trim();
       continue;
     }
@@ -6041,6 +6089,17 @@ function validateAndRenderFix(rc){
     else if(line.trim() && !line.match(/^(FILE|file|File):/)){
       context.push(line.replace(/^#\s*/, '').trim());
     }
+  }
+
+  // Save last file section
+  if(targetFile && (additions.length > 0 || context.length > 0)){
+    fileSections.push({ file: targetFile, additions: [...additions], context: [...context] });
+  }
+
+  // For multi-file fixes, use simplified rendering without file validation
+  if(fileSections.length > 1){
+    // Multi-file fix - render each section separately
+    return { html: renderMultiFileDiff(fileSections, rc.fix), noEditNeeded: false };
   }
 
   // Extract service name from evidence if available
@@ -6152,6 +6211,38 @@ function validateAndRenderFix(rc){
 
   // Fallback to standard diff rendering
   return { html: renderGitHubDiff(rc.fix), noEditNeeded: false };
+}
+
+// Render multi-file diff with proper file separation
+function renderMultiFileDiff(fileSections, rawFix){
+  let html = '';
+
+  for(const section of fileSections){
+    html += '<div class="diff-body">';
+    html += `<div class="diff-file-header">
+      <span class="mi" style="font-size:16px">description</span>
+      <span style="flex:1">${esc(section.file)}</span>
+      <span class="md-chip" style="font-size:10px;background:var(--md-tertiary)20;color:var(--md-tertiary)">Suggested</span>
+    </div>`;
+
+    // Show context lines
+    for(const ctx of section.context){
+      if(ctx.trim()){
+        html += `<div class="diff-line diff-context"><span class="diff-line-num"></span>${esc(ctx)}</div>`;
+      }
+    }
+
+    // Show additions
+    for(const add of section.additions){
+      if(add.trim()){
+        html += `<div class="diff-line diff-add"><span class="diff-line-num"></span><span class="diff-add-text">${esc(add)}</span></div>`;
+      }
+    }
+
+    html += '</div>';
+  }
+
+  return html;
 }
 
 // Render diff with actual file content context
