@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://xdaforums.com/t/recovery-twrp-for-android-12-13-and-14.4638631/page-2",
+    "name": "Development - [Recovery] TWRP for Android 12, 13 and 14",
+    "snippet": "Oct 28, 2023 — I have a Motorola rtwo phone with Android 14 build number UITRS34.8-30- 13 -1 on it and want to install TWRP . I have tried to use the latest ... Read more",
+    "host_name": "xdaforums.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://gist.github.com/lopestom/c4a2648958db5c3db03d32033a3583cd?permalink_comment_id=5488470",
+    "name": "Copying firmware files to the Device Tree - Mediatek",
+    "snippet": "From my experience, there are devices shipped with Android 11 with kernel 4.19, devices shipped with Android 12 - 13 with kernel 4.14 and with kernel 5.1.xxx ... Read more",
+    "host_name": "gist.github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://android.stackexchange.com/questions/224940/is-twrp-os-version-specific",
+    "name": "Is TWRP OS-version specific?",
+    "snippet": "May 12, 2020 — Yes, TWRP is built OS- version specific the reason is changes in android versions may differ in most (if not all) updates are backwards compatible. Read more",
+    "host_name": "android.stackexchange.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.e.foundation/t/twrp-replaced-by-e-recovery-after-install/44987",
+    "name": "TWRP replaced by /e/ Recovery after install",
+    "snippet": "Nov 3, 2022 — Hi! I have installed /e/ with success using TWRP in Samsung S9. Although now the TWRP has been replaced by the /e/ Recovery without asking.",
+    "host_name": "community.e.foundation",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://xdaforums.com/t/recovery-twrp-for-android-12-13-and-14.4638631",
+    "name": "Development - [Recovery] TWRP for Android 12, 13 and 14",
+    "snippet": "Oct 28, 2023 — This TWRP can decrypt Android 12 , 13 and 14 AOSP roms, havent tested with MIUI or custom MIUI roms tested with: - evolution x 14 - voltageos 14 - AOSPA 14 Read more",
+    "host_name": "xdaforums.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/Android/comments/y3mbeu/twrp_370_released_with_android_12_support",
+    "name": "TWRP 3.7.0 Released -- with Android 12 support",
+    "snippet": "3.6 and 3.7 fixed issues with Android 11 and 12 and now support both those versions . 3.7.1 twrp in beta supports android 13 . Read more",
+    "host_name": "www.reddit.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://gerrit.twrp.me/c/android_bootable_recovery/+/3570/30",
+    "name": "support fscrypt policies v1 and v2 (3570)",
+    "snippet": "FsCrypt update : support fscrypt policies v1 and v2 This patchset introduces support decryption for Android 11 . In this update we deprecate ext4crypt. Read more",
+    "host_name": "gerrit.twrp.me",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/HemanthJabalpuri/twrp_realme_RMX2185/blob/android-11/BoardConfig.mk",
+    "name": "twrp_realme_RMX2185/BoardConfig.mk at android-11",
+    "snippet": "RMX2185: Update for twrp -12.1 and Android 13 decryption. 4 years ago. bcc288e · 4 years ago. History. History. Read more",
+    "host_name": "github.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.hovatek.com/twrpbuilder",
+    "name": "Online TWRP Builder",
+    "snippet": "Which devices are supported? ... It supports all devices capable of installing TWRP recovery running on Android 5.1, 6, 7, 8, 8.1, 9, 10, 11 , 12 , 13 or 14 + . Read more",
+    "host_name": "www.hovatek.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/ryenyuku/twrp_device_infinix_X692/blob/android-11/BoardConfig.mk",
+    "name": "twrp_device_infinix_X692/BoardConfig.mk at android-11",
+    "snippet": "TWRP device tree for Infinix Note 8 (X692). Contribute to ryenyuku/twrp_device_infinix_X692 development by creating an account on GitHub.",
+    "host_name": "github.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

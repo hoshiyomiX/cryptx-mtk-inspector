@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://source.android.com/docs/security/features/keystore",
+    "name": "Hardware-backed Keystore | Android Open Source Project",
+    "snippet": "2 Dec 2025 — Android 10 introduced version 4.1 of the Keymaster HAL, which added: Support for keys that are only usable when the device is unlocked; Support ...",
+    "host_name": "source.android.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://android.googlesource.com/platform/hardware/interfaces/+/master/keymaster/4.0/IKeymasterDevice.hal",
+    "name": "keymaster/4.0/IKeymasterDevice.hal - platform/hardware",
+    "snippet": "* generator must be high-quality and must be used for generation of keys, initialization vectors,. * random padding and other elements of secure protocols that ...",
+    "host_name": "android.googlesource.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://nelenkov.blogspot.com/2013/08/credential-storage-enhancements-android-43.html",
+    "name": "Credential storage enhancements in Android 4.3",
+    "snippet": "Android 4.3 offers a standard SDK API for generating and accessing app-private RSA keys, which makes it easier for non- system apps to store their keys securely.",
+    "host_name": "nelenkov.blogspot.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://xdaforums.com/t/tricky-store-bootloader-keybox-spoofing.4683446/page-389",
+    "name": "Tricky Store - Bootloader & Keybox Spoofing | Page 389",
+    "snippet": "23 July 2024 — Since your device @zgfg was launched with Android 11, the vendor firmware HAL is Keymaster 4.1 and the key attestations are tagged with this ...",
+    "host_name": "xdaforums.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.usenix.org/system/files/sec22fall_shakevsky.pdf",
+    "name": "Shedding Light on Samsung's TrustZone Keymaster Design",
+    "snippet": "Cited by 55 — It is implemented in the Android user mode and communicates with the Keymaster TA using kernel drivers and World Shared Memory buffers (see Fig. 3 ). The. 18 pages",
+    "host_name": "www.usenix.org",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://arxiv.org/html/2507.07927v1",
+    "name": "A Large-Scale Analysis of Secure Key Storage in Android",
+    "snippet": "10 July 2025 — The initial version of the Android Keystore only supported asymmetric cryptographic operations and did not add support for symmetric keys until ...",
+    "host_name": "arxiv.org",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://git.halogenos.org/halogenOS/android_hardware_interfaces/-/blob/XOS-15.2-20250508_180234_CEST_1746720154/keymaster/4.1/IKeymasterDevice.hal",
+    "name": "IKeymasterDevice.hal - halogenOS GitLab",
+    "snippet": "Called by client to notify the IKeymasterDevice that the device is now locked, and keys with. * the UNLOCKED_DEVICE_REQUIRED tag should no longer be usable.",
+    "host_name": "git.halogenos.org",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://source.android.com/docs/security/features/keystore/attestation",
+    "name": "Key and ID attestation - Android Open Source Project",
+    "snippet": "To remedy this, key attestation was introduced in Android 7.0 ( Keymaster 2) and ID attestation was introduced in Android 8.0 ( Keymaster 3 ). Key attestation ...",
+    "host_name": "source.android.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://android.googlesource.com/platform/system/keymaster/+/df96339a51da529aff1301a3f4ac23291c8f1f37%5E2..df96339a51da529aff1301a3f4ac23291c8f1f37",
+    "name": "platform/system/keymaster - Git at Google",
+    "snippet": "... keymaster - // version with the new format would destroy the user's data. - // - // What is the probability that an unversioned key could be successfully ...",
+    "host_name": "android.googlesource.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://review.lineageos.org/c/LineageOS/android_device_nubia_TP1803/+/319276?usp=search",
+    "name": "Provide radio, keymaster and secure_element HAL on vendor",
+    "snippet": "TP1803: Provide radio, keymaster and secure_element HAL on vendor In [1] Google removed many HIDL HAL libraries from VNDK, causing them to only be installed ...",
+    "host_name": "review.lineageos.org",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

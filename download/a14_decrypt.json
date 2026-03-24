@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://source.android.com/docs/security/features/encryption/file-based",
+    "name": "File-based encryption - Android Open Source Project",
+    "snippet": "2 Dec 2025 — This article describes how to enable file-based encryption on new devices and how system apps can use the Direct Boot APIs to offer users the ...\nThis article describes how to enable file-based encryption on new devices and how system apps can use the Direct Boot APIs to offer users the ... Missing: TWRP | Show results with: TWRP",
+    "host_name": "source.android.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://xdaforums.com/t/twrp-cant-decrypt-data.4079109",
+    "name": "Twrp can't decrypt data",
+    "snippet": "8 Apr 2020 — Hey everyone, After updating to the last stable version of xiaomi.eu I wanted to reflash magisk but when I boot into recovery I'm not asked for ...",
+    "host_name": "xdaforums.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://android.stackexchange.com/questions/220599/how-to-create-filesystem-in-twrp-getting-error-unable-to-format-to-remove-enc",
+    "name": "How to create filesystem in TWRP? Getting error",
+    "snippet": "24 Jan 2020 — I was trying to flash a custom ROM using TWRP recovery but it's showing Unable to mount storage & Failed to mount '/data' (Invalid argument).",
+    "host_name": "android.stackexchange.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://gist.github.com/lopestom/c4a2648958db5c3db03d32033a3583cd",
+    "name": "Copying firmware files to the Device Tree - Mediatek",
+    "snippet": "Note that depending on the Android version originally shipped to the device, encryption modes may have FDE (deprecated in Android 11+) and currently FBE .",
+    "host_name": "gist.github.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://xdaforums.com/t/official-9-10-twrp-3-6-0-for-poco-f1-beryllium.4181357/page-8",
+    "name": "[OFFICIAL] [9/10] TWRP 3.6.0 for POCO F1 [beryllium]",
+    "snippet": "24 Oct 2020 — There is a new official TWRP build for our device, v3 .7.0. Since it's still based on the Android 9 branch, I suspect it still won't support FBE decryption for ...",
+    "host_name": "xdaforums.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.quora.com/Ive-encrypted-my-phone-on-another-phone-How-do-I-do-it",
+    "name": "I've encrypted my phone on another phone. How do I do it?",
+    "snippet": "The only way to decrypt it is to use the same phone that was used to encrypt it. If you do not have the old phone or the old phone was factory ...",
+    "host_name": "www.quora.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://xdaforums.com/t/recovery-unofficial-twrp-recovery-support-decryption-data.3933672",
+    "name": "[RECOVERY] unOfficial twrp recovery support decryption",
+    "snippet": "25 May 2019 — Use magiskboot to allow repacking boot images for installing TWRP .. Added the ability to return encryption data to any firmware. Mod edit: links ...",
+    "host_name": "xdaforums.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.android-hilfe.de/forum/google-nexus-10.809/recovery-manta-20-05-2019-twrp-3-3-1-0-touch-recovery.373788.html",
+    "name": "Root [RECOVERY][Manta] *28.11.2021* TWRP 3.6.0",
+    "snippet": "4 Feb 2013 — Changelog v2 .8.2.0: Pull in all changes from Android 5.0 lollipop into TWRP ; Add decrypt support for Android 5.0 lollipop encrypted ...",
+    "host_name": "www.android-hilfe.de",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://xdaforums.com/t/twrp-cant-decrypt-data-in-work-profile-on-pixel-3.3921096",
+    "name": "TWRP can't decrypt data in work profile on Pixel 3.",
+    "snippet": "13 Apr 2019 — I have created a work profile and enabled FBE . After entering the password in TWRP , only the main user's data is decrypted .",
+    "host_name": "xdaforums.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/LineageOS/comments/qmprr2/decrypting_fbe_from_twrp",
+    "name": "Decrypting FBE from TWRP : r/LineageOS - Reddit",
+    "snippet": "FBE only encrypts files and directories which leads to a faster boot time and it actually decrypts them when unlocking the device after it boots up.",
+    "host_name": "www.reddit.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

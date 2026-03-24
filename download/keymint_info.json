@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://xdaforums.com/t/dev-how-to-compile-twrp-touch-recovery.1943625/page-233",
+    "name": "[DEV]How to compile TWRP touch recovery | Page 233",
+    "snippet": "Oct 18, 2012 — All of TWRP 3.x source is public. You can compile it on your own. This guide isn't going to be a step-by-step, word-for-word type of guide.",
+    "host_name": "xdaforums.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://source.android.com/docs/security/features/encryption/file-based",
+    "name": "File-based encryption - Android Open Source Project",
+    "snippet": "Dec 2, 2025 — File-based encryption allows different files to be encrypted with different keys that can be unlocked independently.",
+    "host_name": "source.android.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://gist.github.com/lopestom/c4a2648958db5c3db03d32033a3583cd?permalink_comment_id=5664851",
+    "name": "Copying firmware files to the Device Tree - Mediatek",
+    "snippet": "Each version of TWRP may have new flags introduced and may also have Deprecated flags. ... Android 12 - 13 with kernel 4.14 and with kernel 5.1.xxx that have ...",
+    "host_name": "gist.github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.scribd.com/document/778713869/Atoms-proto-1",
+    "name": "Atoms Proto | PDF",
+    "snippet": "// Introduced in Android 12 . // This is intended to be used as a dimenstion in collecting per-refresh rate // jank statistics. optional int32 ...",
+    "host_name": "www.scribd.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://billauer.se/blog/page/6",
+    "name": "my tech blog - Anything I found worthy to write down.",
+    "snippet": "Jun 10, 2022 — Introduction . These are my notes as I upgraded Thunderbird from version 3.0.7 (released September 2010) to 91.10.0 on Linux Mint 19. That's ...",
+    "host_name": "billauer.se",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://source.android.com/docs/security/features/keystore/features",
+    "name": "Features | Android Open Source Project",
+    "snippet": "2 Dec 2025 — This page contains information about the cryptographic features of Android Keystore, as provided by the underlying KeyMint (or Keymaster ) implementation. Read more",
+    "host_name": "source.android.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/balazsgerlei/AndroidSecurityEvolution",
+    "name": "balazsgerlei/AndroidSecurityEvolution: Significant security",
+    "snippet": "... Android 16 or higher; Add support for KeyMint (previously Keymaster ) version 4.0 attestation certificates. KeyMint 4.0 certificates include a new moduleHash ... Read more",
+    "host_name": "github.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://android.googlesource.com/platform/system/keymaster/+/df96339a51da529aff1301a3f4ac23291c8f1f37%5E2..df96339a51da529aff1301a3f4ac23291c8f1f37",
+    "name": "platform/system/keymaster - Git at Google",
+    "snippet": "... Version enumerates the list of Keymaster / KeyMint versions that we may support. As old + * versions are deprecated and removed they should be removed from ... Read more",
+    "host_name": "android.googlesource.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.scribd.com/document/694390216/android-enterprise-security-paper-2023",
+    "name": "Keymint vs Keymaster in Android Security | PDF",
+    "snippet": "The Google Android 13 and Google Android 12 STIGs provide a standard implementation for configuring and locking down any Android device using Android Read more",
+    "host_name": "www.scribd.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proandroiddev.com/goodbye-encryptedsharedpreferences-a-2026-migration-guide-4b819b4a537a",
+    "name": "Goodbye EncryptedSharedPreferences: A 2026 Migration",
+    "snippet": "4 Dec 2025 — Navigating the shift from Android's legacy secure storage to the modern DataStore + Tink era. Press enter or click to view image in full ... Read more",
+    "host_name": "proandroiddev.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

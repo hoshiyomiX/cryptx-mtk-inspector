@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://xdaforums.com/t/dev-how-to-compile-twrp-touch-recovery.1943625/page-233",
+    "name": "[DEV]How to compile TWRP touch recovery | Page 233",
+    "snippet": "18 Oct 2012 — All of TWRP 3.x source is public. You can compile it on your own. This guide isn't going to be a step-by-step, word-for-word type of guide.",
+    "host_name": "xdaforums.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://source.android.com/docs/security/features/encryption/file-based",
+    "name": "File-based encryption - Android Open Source Project",
+    "snippet": "2 Dec 2025 — File-based encryption allows different files to be encrypted with different keys that can be unlocked independently.",
+    "host_name": "source.android.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://gist.github.com/lopestom/c4a2648958db5c3db03d32033a3583cd?permalink_comment_id=5664851",
+    "name": "Copying firmware files to the Device Tree - Mediatek",
+    "snippet": "Understanding how you will have files from Android 4.4 to Android 13 (new information on how to decrypt userdata must be understood and make correct changes ...",
+    "host_name": "gist.github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://nelenkov.blogspot.com/2014/10/revisiting-android-disk-encryption.html",
+    "name": "Revisiting Android disk encryption",
+    "snippet": "5 Oct 2014 — The disk encryption key (128-bit, called the 'master key') is randomly generated and protected by the lockscreen password. Individual disk ...",
+    "host_name": "nelenkov.blogspot.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.scribd.com/document/694390216/android-enterprise-security-paper-2023",
+    "name": "Keymint vs Keymaster in Android Security | PDF",
+    "snippet": "This document provides an overview of Android security features across hardware-backed security, the operating system, networking, applications, ...\nThis document provides an overview of Android security features across hardware-backed security, the operating system, networking, applications, and data protection.",
+    "host_name": "www.scribd.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://android.stackexchange.com/questions/236416/how-to-decrypt-sdcard-keymaster-hal-4-unexpected-value-for-crypto-key-locat",
+    "name": "How to decrypt /sdcard | Keymaster HAL 4",
+    "snippet": "14 Apr 2021 — I have the encryption key, I just need some way to decrypt the storage. I think of something like an ADB command to flag the partition as ...",
+    "host_name": "android.stackexchange.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://source.android.com/docs/security/features/keystore/implementer-ref",
+    "name": "KeyMint functions | Android Open Source Project",
+    "snippet": "2 Dec 2025 — A KeyMint implementation supports at least 16 concurrent operations. Keystore uses up to 15 , leaving one for vold to use for password encryption ...",
+    "host_name": "source.android.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://source.android.com/docs/security/best-practices/hardware",
+    "name": "Hardware security best practices - Android Open Source Project",
+    "snippet": "This page contains recommendations to ensure that the hardware present on Android devices contributes to raising the overall security of the device instead of compromising the security of the device.",
+    "host_name": "source.android.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://dongyongzhou.github.io/document/knowledge/professional/android/security/android-keymaster.html",
+    "name": "Android keystore and Keymaster - GitHub Pages",
+    "snippet": "The 'old' keymaster HAL is retained for backward compatibility as version 0.3, while the Android M version has been bumped to 1.0, and offers a completely different interface.",
+    "host_name": "dongyongzhou.github.io",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/@dfs.techblog/safeguarding-cryptographic-keys-implementing-tee-and-strongbox-in-android-applications-7894c800e43e",
+    "name": "Safeguarding Cryptographic Keys: Implementing TEE and",
+    "snippet": "In this article we will see how we can save different cryptographic keys in Android leveraging the hardware support.",
+    "host_name": "medium.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

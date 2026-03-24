@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://android.stackexchange.com/questions/236416/how-to-decrypt-sdcard-keymaster-hal-4-unexpected-value-for-crypto-key-locat",
+    "name": "How to decrypt /sdcard | Keymaster HAL 4",
+    "snippet": "Apr 14, 2021 — I have the encryption key, I just need some way to decrypt the storage. I think of something like an ADB command to flag the partition as ... Read more",
+    "host_name": "android.stackexchange.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://gerrit.twrp.me/q/7ba7500953cb70ff750a3c918d85d8f9be0ad7e2",
+    "name": "decrypt: AOSP 10 requires the use of fscrypt (2440)",
+    "snippet": "Change metadata · Files and Comments tabs · Change Log. Read more",
+    "host_name": "gerrit.twrp.me",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://stackoverflow.com/questions/37258093/android-device-encryption-fails-on-cm-12-1-due-to-error-in-device-mapper",
+    "name": "Android Device Encryption fails on CM-12.1 due to error in",
+    "snippet": "I am currently trying to compile CM-12.1 ( Android 5.1) for a Xiaomi Redmi Note 3 (MTK), but I am having issues with the device encryption ... Read more",
+    "host_name": "stackoverflow.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://gist.github.com/lopestom/c4a2648958db5c3db03d32033a3583cd",
+    "name": "Copying firmware files to the Device Tree - Mediatek",
+    "snippet": "I decrypted the user partition and saw a huge increase in performance, so overall I would like to take all of the encryption, secure boot, anything like that ... Read more",
+    "host_name": "gist.github.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.facebook.com/groups/246863286031193/posts/1573789920005183",
+    "name": "Qualcomm HS-USB QDLoader 9008 (COM4)",
+    "snippet": "1- Use Latest Driver From C:/Hydra Tool/Driver 2 - Use Org Data Cable 3- Flashing depending on firmware size.|If system not responding, ...",
+    "host_name": "www.facebook.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://gist.github.com/7Soldier/4475255cb09d894dcb5805ffdaf840b8",
+    "name": "Logcat · GitHub",
+    "snippet": "03-17 12 :49:19.389 366 419 I hwservicemanager: Tried to start android .hardware. keymaster @ 4.0 ::IKeymasterDevice/default as a lazy service, but was unable to. Read more",
+    "host_name": "gist.github.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.facebook.com/groups/starlinkgroup/posts/1010046752851619",
+    "name": "Uses the \"Das U-Boot\" bootloader (",
+    "snippet": "Dishy Serial Console & Boot Log While tearing down the Starlink Dishy, Youtuber MikeOnSpace found an unused port on the motherboard of Dishy ... Read more",
+    "host_name": "www.facebook.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/SlimRoms/slimroms.github.io/blob/master/data/posts.json",
+    "name": "slimroms.github.io/data/posts.json at master ·",
+    "snippet": "\"Today we release 2.0 stable. This brings up to January security update, and device updates.\",. \"\",. \"Note: Some ... Read more",
+    "host_name": "github.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://android.stackexchange.com/questions/258060/how-to-decrypt-user-data-on-android-lineageos-via-bootloader-twrp-adb",
+    "name": "How to decrypt user data on Android / LineageOS via bootloader",
+    "snippet": "You need to have your password or your data can't be decrypted by TWRP. The security chip uses your password to unlock encryption keys. defalt. /data's data is garbled in TWRP. How to decrypt - Android ... How exactly does FBE's key derivation work? More results from android.stackexchange.com Missing: metadata | Show results with: metadata",
+    "host_name": "android.stackexchange.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://xdaforums.com/t/mate-9-how-to-retrieve-encrypted-files-from-a-broken-system-userdata-partition.3894561",
+    "name": "how to retrieve encrypted files from a broken system (userdata",
+    "snippet": "A complete userdata partition image that you need to decrypt. Usually you can make this image in TWRP using dd command. (In this guide, you are ... Backed up userdata partition before wiping, now how do I decrypt it ... TWRP - Working /data decryption on Android 9 (3.3.1-0) | Page 6 More results from xdaforums.com",
+    "host_name": "xdaforums.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

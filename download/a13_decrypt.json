@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://gerrit.twrp.me/c/android_bootable_recovery/+/3570/16",
+    "name": "support fscrypt policies v1 and v2 (3570) · Gerrit Code Review",
+    "snippet": "FsCrypt update: support fscrypt policies v1 and v2 This patchset introduces support decryption for Android 11. In this update we deprecate ext4crypt. Read more",
+    "host_name": "gerrit.twrp.me",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://source.android.com/docs/security/features/encryption/file-based",
+    "name": "File-based encryption - Android Open Source Project",
+    "snippet": "Dec 2, 2025 — fscrypt supports two versions of encryption policies: version 1 and version 2 . Version 1 is deprecated, and the CDD requirements for devices ... Read more\n2 Dec 2025 — File-based encryption allows different files to be encrypted with different keys that can be unlocked independently. Read more",
+    "host_name": "source.android.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://xdaforums.com/t/twrp-cant-decrypt-data.4079109",
+    "name": "Twrp can't decrypt data",
+    "snippet": "Apr 8, 2020 — Hey everyone, After updating to the last stable version of xiaomi.eu I wanted to reflash magisk but when I boot into recovery I'm not asked for ... Read more",
+    "host_name": "xdaforums.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/AndroidQuestions/comments/1f6v3tc/twrp_encryption_android_13",
+    "name": "twrp encryption android 13 : r/AndroidQuestions",
+    "snippet": "The only way to decrypt a phone when using a recovery is through the lockscreen code -which can be defeated using another recovery to delete the lockscreen ... Read more",
+    "host_name": "www.reddit.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://android.stackexchange.com/questions/216155/how-exactly-does-fbes-key-derivation-work",
+    "name": "How exactly does FBE's key derivation work?",
+    "snippet": "Aug 24, 2019 — I'm wondering if through my combination of renaming files like gatekeeper.*.key and locksettings.db that the FBE key maybe was decrypted with the wrong key. Read more",
+    "host_name": "android.stackexchange.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://xdaforums.com/t/mate-9-how-to-retrieve-encrypted-files-from-a-broken-system-userdata-partition.3894561",
+    "name": "Mate 9 - how to retrieve encrypted files from a broken",
+    "snippet": "Jan 28, 2019 — This guide is about how to retrieve these encrypted files. Requirements : Notes: In order to protect the fscrypt keys (I described above), FBE uses keymaster to ... Read more",
+    "host_name": "xdaforums.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/SlimRoms/slimroms.github.io/blob/master/data/posts.json",
+    "name": "slimroms.github.io/data/posts.json at master ·",
+    "snippet": "\"Today we release 2.0 stable. This brings up to January security update, and device updates.\",. \"\",. \"Note: Some ... Read more",
+    "host_name": "github.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://gerrit.twrp.me/q/a957f078be58639bd4c4ba1f36e5cf2745420342",
+    "name": "support fscrypt policies v1 and v2 (3570) · Gerrit Code Review",
+    "snippet": "FsCrypt update: support fscrypt policies v1 and v2 This patchset introduces support decryption for Android 11. In this update we deprecate ext4crypt. Read more",
+    "host_name": "gerrit.twrp.me",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://xdaforums.com/t/about-decrypting-twrp.4689053",
+    "name": "Question - About decrypting TWRP",
+    "snippet": "27 Aug 2024 — The question here is 1: Is there a default password on TWRP ? If no then 2 : How can i decrypt my phone? ShaDisNX255. Senior Member. Read more",
+    "host_name": "xdaforums.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://android.stackexchange.com/questions/258060/how-to-decrypt-user-data-on-android-lineageos-via-bootloader-twrp-adb",
+    "name": "How to decrypt user data on Android / LineageOS via",
+    "snippet": "17 Aug 2024 — You need to have your password or your data can't be decrypted by TWRP . The security chip uses your password to unlock encryption keys. defalt. Read more",
+    "host_name": "android.stackexchange.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

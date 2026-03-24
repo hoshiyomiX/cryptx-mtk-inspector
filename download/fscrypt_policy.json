@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://source.android.com/docs/security/features/encryption/file-based",
+    "name": "File-based encryption - Android Open Source Project",
+    "snippet": "Version 1 is deprecated, and the CDD requirements for devices launching with Android 11 and higher are only compatible with version 2. Version 2 ...",
+    "host_name": "source.android.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://gerrit.twrp.me/c/android_bootable_recovery/%2B/3570/30",
+    "name": "support fscrypt policies v1 and v2 (3570) - is:wip · Gerrit Code Review",
+    "snippet": "FsCrypt update: support fscrypt policies v1 and v2 This patchset introduces support decryption for Android 11. In this update we deprecate ext4crypt.",
+    "host_name": "gerrit.twrp.me",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://patchwork.ozlabs.org/patch/1137661",
+    "name": "[v7,06/16] fscrypt: add FS_IOC_ADD_ENCRYPTION_KEY ioctl",
+    "snippet": "[v7,11/16] fscrypt: allow unprivileged users to add/remove keys for v2 policies · [v7,12/16] fscrypt: require ...",
+    "host_name": "patchwork.ozlabs.org",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://android.googlesource.com/kernel/common/%2B/refs/heads/deprecated/android-4.19%255E2..refs/heads/deprecated/android-4.19",
+    "name": "Diff - kernel/common - Git repositories on android",
+    "snippet": "(Note: we refer to the original + policy version as \"v1\", though its version code is really 0.) For + new encrypted directories, use v2 policies.",
+    "host_name": "android.googlesource.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://source.android.com/docs/compatibility/11/android-11-cdd",
+    "name": "Android 11 Compatibility Definition",
+    "snippet": "This document enumerates the requirements that must be met in order for devices to be compatible with Android 11.",
+    "host_name": "source.android.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://gerrit.twrp.me/q/a957f078be58639bd4c4ba1f36e5cf2745420342",
+    "name": "support fscrypt policies v1 and v2 (3570) · Gerrit Code Review - TWRP",
+    "snippet": "FsCrypt update: support fscrypt policies v1 and v2 This patchset introduces support decryption for Android 11. In this update we deprecate ext4crypt.",
+    "host_name": "gerrit.twrp.me",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.sciencedirect.com/science/article/pii/S2666281723001816",
+    "name": "Techniques and methods for obtaining access to data protected by",
+    "snippet": "Where legacy (v1) fscrypt policies are implemented, a number of limitations and flaws have been noted, such as those documented in the Kernel Development ...",
+    "host_name": "www.sciencedirect.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://source.android.com/docs/compatibility/14/android-14-cdd",
+    "name": "Android 14 Compatibility Definition",
+    "snippet": "This document enumerates the requirements that must be met in order for devices to be compatible with Android 14.",
+    "host_name": "source.android.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://android.googlesource.com/kernel/msm.git/%2B/17d718ca1528f48b1853585fef11359aa899dae1%255E2..17d718ca1528f48b1853585fef11359aa899dae1",
+    "name": "Diff - kernel/msm.git - Git repositories on android",
+    "snippet": "(Note: we refer to the original + policy version as \"v1\", though its version code is really 0.) For + new encrypted directories, use v2 policies. - ...",
+    "host_name": "android.googlesource.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.nxp.com/pwmxy87654/attachments/pwmxy87654/imx-processors/201541/2/dmesg_ilitek.txt",
+    "name": "dmesg_ilitek.txt - NXP Community",
+    "snippet": "... version 5.4.70-00122-g446a082-dirty (developer@ip-172-31-9-233) (Android (5271481 based on r349610) clang version 8.0.8 (https://android.googlesource.com ...",
+    "host_name": "community.nxp.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

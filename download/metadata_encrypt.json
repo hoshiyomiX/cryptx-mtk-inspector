@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://source.android.com/docs/security/features/encryption/metadata",
+    "name": "Metadata encryption | Android Open Source Project",
+    "snippet": "Dec 2, 2025 — Metadata encryption is always enabled on adoptable storage whenever FBE is enabled. Metadata encryption can also be enabled on internal storage.",
+    "host_name": "source.android.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://source.android.com/docs/security/features/encryption/file-based",
+    "name": "File-based encryption - Android Open Source Project",
+    "snippet": "Dec 2, 2025 — Android 7.0 and higher supports file-based encryption ( FBE ). File-based encryption allows different files to be encrypted with different ...",
+    "host_name": "source.android.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.researchgate.net/publication/335084251_Analyzing_Android%27s_File-Based_Encryption_Information_Leakage_through_Unencrypted_Metadata",
+    "name": "Analyzing Android's File-Based Encryption",
+    "snippet": "We investigate the amount of information leakage through unencrypted metadata in Android's file-based encryption ( FBE ) which was introduced as an ...",
+    "host_name": "www.researchgate.net",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/Android/comments/gt3ib8/why_was_fulldisk_encryption_removeddisallowed_in",
+    "name": "Why was full-disk encryption removed/disallowed in",
+    "snippet": "In terms of security, FBE flushes the key out of memory as soon as it is used. FDE keeps the key in memory as long entire OS is not up running.",
+    "host_name": "www.reddit.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://xdaforums.com/t/mate-9-how-to-retrieve-encrypted-files-from-a-broken-system-userdata-partition.3894561",
+    "name": "Mate 9 - how to retrieve encrypted files from a broken",
+    "snippet": "Jan 28, 2019 — This guide is about how to retrieve these encrypted files. Requirements : Notes: In order to protect the fscrypt keys (I described above), FBE uses keymaster to ...",
+    "host_name": "xdaforums.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://proandroiddev.com/securing-the-future-navigating-the-deprecation-of-encrypted-shared-preferences-91ce3c20ae8d",
+    "name": "Navigating the Deprecation of Encrypted Shared Preferences",
+    "snippet": "May 28, 2024 — In this post, we'll take a look at what this news really means for those who have previously embraced EncryptedSharedPreferences and also for those who may ...",
+    "host_name": "proandroiddev.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/@n20/encryptedsharedpreferences-is-deprecated-what-should-android-developers-use-now-7476140e8347",
+    "name": "What Should Android Developers Use Now? | by MobileDev",
+    "snippet": "Heavy reliance on legacy SharedPreferences APIs. · Limited flexibility for customizing ...",
+    "host_name": "medium.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://services.google.com/fh/files/misc/android-security-paper-2024.pdf",
+    "name": "2024 Android Security Paper",
+    "snippet": "Mandatory encryption on Android protects user data if an Android device is lost or stolen. Android uses file-based encryption ( FBE ), which enables different. 55 pages",
+    "host_name": "services.google.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://source.android.com/docs/core/storage/adoptable",
+    "name": "Adoptable storage | Android Open Source Project",
+    "snippet": "Aug 26, 2024 — If the device is configured to use file-based encryption ( FBE ) on its internal storage, then adoptable storage uses both FBE and metadata ...",
+    "host_name": "source.android.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/androiddev/comments/1d38mfb/securing_the_future_navigating_the_deprecation_of",
+    "name": "Navigating the deprecation of Encrypted Shared",
+    "snippet": "Securing the Future: Navigating the deprecation of Encrypted ... Android 6.0 also required manufacturers to enable disk encryption by default.",
+    "host_name": "www.reddit.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

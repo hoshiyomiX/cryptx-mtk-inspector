@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://gist.github.com/lopestom/c4a2648958db5c3db03d32033a3583cd",
+    "name": "Copying firmware files to the Device Tree - Mediatek",
+    "snippet": "From my experience, there are devices shipped with Android 11 with kernel 4.19, devices shipped with Android 12 - 13 with kernel 4.14 and with kernel 5.1.",
+    "host_name": "gist.github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/LeeXDA21/android_device_samsung_z3s/blob/twrp/BoardConfig.mk",
+    "name": "android_device_samsung_z3s/BoardConfig.mk at twrp",
+    "snippet": "LeeXDA21/android_device_samsung_z3s.",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://xdaforums.com/t/twrp-flags-to-add-in-boardconfig-mk.4700781",
+    "name": "TWRP flags to add in BoardConfig.mk",
+    "snippet": "Nov 1, 2024 — # This is a build flag that tells the Android build system whether the device uses a generic kernel image or a custom, device -specific kernel ...",
+    "host_name": "xdaforums.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://gerrit.twrp.me/changes/android_device_samsung_a34x~8282/revisions/1/patch?download&raw",
+    "name": "8532e98.diff",
+    "snippet": "... TWRP device tree generator +# Copyright (C) 2025 The TWRP Open Source Project # # SPDX-License-Identifier: Apache-2.0 # diff --git a/AndroidProducts.mk b ...",
+    "host_name": "gerrit.twrp.me",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/DrBrown28/TWRP_NX669J_12.1/blob/Twrp_12.1/BoardConfig.mk",
+    "name": "TWRP_NX669J_12.1/BoardConfig.mk at Twrp_12.",
+    "snippet": "Twrp tree for Red Magic 6 series . Contribute to DrBrown28/TWRP_NX669J_12.1 development by creating an account on GitHub.",
+    "host_name": "github.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/almondnguyen/twrp_device_samsung_a32/blob/twrp-12.1/BoardConfig.mk",
+    "name": "twrp_device_samsung_a32/BoardConfig.mk at twrp-12.1",
+    "snippet": "TWRP Tree for Samsung Galaxy A32 4G (MTK), based on A325FXXU2BVD6, co-maintained with @long266 . - twrp_device_samsung_a32/BoardConfig.mk at twrp-12.1 ...",
+    "host_name": "github.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://xdaforums.com/t/rooting-stock-firmware-w-magisk.4321575",
+    "name": "How To Guide - Rooting Stock Firmware W/ Magisk",
+    "snippet": "Aug 19, 2021 — For the FBE decryption issues, have you tried looking at the TWRP device tree for the Nord N10? I see a bunch of extra files related to ...",
+    "host_name": "xdaforums.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/IMYdev/twrp_device_infinix_lion/blob/twrp-11/BoardConfig.mk",
+    "name": "twrp_device_infinix_lion/BoardConfig.mk at twrp-11",
+    "snippet": "TWRP device tree for Infinix HOT 12 Play . Contribute to IMYdev/twrp_device_infinix_lion development by creating an account on GitHub.",
+    "host_name": "github.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/PizzaG/android_device_motorola_boston/blob/TWRP/BoardConfig.mk",
+    "name": "android_device_motorola_boston/BoardConfig.mk at TWRP",
+    "snippet": "Motorola Moto G Stylus 5G 2024. Contribute to PizzaG/android_device_motorola_boston development by creating an account on GitHub.",
+    "host_name": "github.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/TARKZiM/twrp_android_device_samsung_a14xm/blob/android-12.1-clean/BoardConfig.mk",
+    "name": "twrp_android_device_samsung_",
+    "snippet": "Contribute to TARKZiM/twrp_android_device_samsung_a14xm development by creating an account on GitHub.",
+    "host_name": "github.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

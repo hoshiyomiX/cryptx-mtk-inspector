@@ -1,0 +1,20 @@
+[
+  {
+    "url": "https://gist.github.com/lopestom/c4a2648958db5c3db03d32033a3583cd?permalink_comment_id=5664851",
+    "name": "Copying firmware files to the Device Tree - Mediatek",
+    "snippet": "Unpack the stock recovery ramdisk img file and open the prop.default file. Find the trust or trustkernel or tee or beanpod or trustonic line;; Unzip the stock ... Read more",
+    "host_name": "gist.github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://cpu52.com/archives/377.html",
+    "name": "[MTK] How To Enable Microtrust TEE - 芯缘异码",
+    "snippet": "Oct 28, 2021 — [DESCRIPTION]Android R: configurations for enable Microtrust TEE (豆荚TEEI)[SOLUTION]Android S + ker...",
+    "host_name": "cpu52.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  }
+]

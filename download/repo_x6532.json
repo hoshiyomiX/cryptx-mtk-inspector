@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://github.com/twrpdtgen/android_device_infinix_Infinix-X6532",
+    "name": "twrpdtgen/android_device_infinix_Infinix-X6532",
+    "snippet": "Android device tree for Infinix Infinix X6532 (Infinix-X6532). # # Copyright (C) 2025 The Android Open Source Project # Copyright (C) 2025 SebaUbuntu's TWRP ... Read more",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/PitchBlackRecoveryProject",
+    "name": "PitchBlack Recovery Project",
+    "snippet": "Open-Source Android Recovery Project. PitchBlack Recovery Project has 248 repositories available. Follow their code on GitHub .",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/naden01/infinix_X6532",
+    "name": "GitHub - naden01/infinix_X6532",
+    "snippet": "Contribute to naden01/infinix_X6532 development by creating an account on GitHub.",
+    "host_name": "github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://xdaforums.com/t/custom-recovery-infinix-smart-9-x6532.4764076",
+    "name": "[CUSTOM RECOVERY] Infinix Smart 9 (X6532) | XDA Forums",
+    "snippet": "Custom Recovery (Twrp / Pbrp / Ofrp / Shrp) for X6532 /* * * We are not responsible for bricked devices, dead SD cards, * thermonuclear war, or you getting fired because the alarm app failed.",
+    "host_name": "xdaforums.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://twrp.me/infinix/smart9.html",
+    "name": "Infinix Smart 9 - TWRP",
+    "snippet": "After typing fastboot reboot, hold the key combo and boot to TWRP. Once TWRP is booted, TWRP will patch the stock ROM to prevent the stock ROM from replacing TWRP.",
+    "host_name": "twrp.me",
+    "rank": 4,
+    "date": "Mar 19, 2026",
+    "favicon": ""
+  }
+]

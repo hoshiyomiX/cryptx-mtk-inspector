@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://github.com/naden01/Infinix-X6531B",
+    "name": "GitHub - naden01/Infinix-X6531B: still W.I.P",
+    "snippet": "still W.I.P. Contribute to naden01/Infinix-X6531B development by creating an account on GitHub.",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://twrp.me/google/androidonesecondgenmtk.html",
+    "name": "Android One Second Generation MTK - TWRP",
+    "snippet": "Download the latest TWRP image file (.img) from the download link and boot TWRP. Go to install and find and select the Images... button. Browse to the image that you downloaded and select it. Choose recovery and swipe to flash. You will need the platform-tools from the Android SDK on your computer.",
+    "host_name": "twrp.me",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://xdaforums.com/t/installing-twrp-on-a-mtk-device.4634591",
+    "name": "Question - Installing TWRP on a MTK device | XDA Forums",
+    "snippet": "Hi there, I wanted to install TWRP custom recovery on my MTK phone (DOOGEE S59 pro). I couldn't find any good tutorial on how to do it nor any unofficial TWRP for this phone.",
+    "host_name": "xdaforums.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.hovatek.com/forum/thread-21839.html",
+    "name": "Mediatek (MTK) Auto TWRP recovery porter by Team Hovatek",
+    "snippet": "Sequel to our Mediatek auto Philz recovery porter and Spreadtrum auto TWRP recovery porter, we've created this tool to make it very easy to port TWRP recovery for your Mediatek Android device.",
+    "host_name": "www.hovatek.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/PitchBlackRecoveryProject/android_device_infinix_X6531-pbrp",
+    "name": "PitchBlackRecoveryProject/android_device_infinix_X6531-pbrp",
+    "snippet": "Contribute to PitchBlackRecoveryProject/android_device_infinix_X6531-pbrp development by creating an account on GitHub.",
+    "host_name": "github.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

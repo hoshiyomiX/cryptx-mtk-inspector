@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://gist.github.com/lopestom/c4a2648958db5c3db03d32033a3583cd%3Fpermalink_comment_id%3D5664851",
+    "name": "Copying firmware files to the Device Tree - Mediatek - GitHub Gist",
+    "snippet": "Understanding how you will have files from Android 4.4 to Android 13 (new information on how to decrypt userdata must be understood and make correct changes ...",
+    "host_name": "gist.github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://gist.github.com/lopestom/c4a2648958db5c3db03d32033a3583cd?permalink_comment_id=5664851",
+    "name": "Copying firmware files to the Device Tree - Mediatek",
+    "snippet": "Understanding how you will have files from Android 4.4 to Android 13 (new information on how to decrypt userdata must be understood and make correct changes ... Read more",
+    "host_name": "gist.github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://xdaforums.com/t/rmx3363-install-twrp-android-12-recovery-with-los-no-decryption-issue.4497949",
+    "name": "[RMX3363] Install TWRP Android 12 recovery with LOS (no",
+    "snippet": "25-Sept-2022 — Hi, I've flashed some ZIPs directly from TWRP without sideload, it works perfectly. But never a rom because I 've installed my custom rom before ... Read more",
+    "host_name": "xdaforums.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://gerrit.twrp.me/q/project:android_device_qcom_twrp-common+branch:android-12.1",
+    "name": "project:android_device_qcom_twrp-common branch",
+    "snippet": "... android -12.1, Feb 09, 2023, XS, ,. Merged. prepdecrypt.sh: fix decryption for devices with erofs partitions. prepdecrypt.sh: fix decryption for devices with ... Read more",
+    "host_name": "gerrit.twrp.me",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/Positron-B/twrp_device_xiaomi_miatoll/blob/android-12.1/proprietary-files.txt",
+    "name": "twrp_device_xiaomi_miatoll/proprietary-files.txt at android-",
+    "snippet": "Contribute to Positron-B/twrp_device_xiaomi_miatoll development by creating an account on GitHub.",
+    "host_name": "github.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://xdaforums.com/t/unable-to-decrypt-data-on-android-12.4387925/page-2",
+    "name": "Question - Unable to decrypt data on Android 12 | Page 2",
+    "snippet": "13-Jan-2022 — I am using the official TWRP (version 3.6) and I am currently on Evolution X 6.0 ( Android 12 ). I am trying to reflash the ROM but whenever I ...",
+    "host_name": "xdaforums.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/androidroot/comments/vmnyuj/decrypt_my_data",
+    "name": "Decrypt my data : r/androidroot",
+    "snippet": "The first thing you need to do is go to advanced - wipe - format data (yes) and then flash disable dm Verity file and after that install magisk. Read more",
+    "host_name": "www.reddit.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.e.foundation/t/s9-unable-to-update-to-eos1-4-due-to-twrp-will-not-decrypt-data/44505",
+    "name": "Unable to update to eos1.4 due to TWRP will not Decrypt Data",
+    "snippet": "11-Oct-2022 — I installed eos through the easy installer. The easy installer installed e1.2. I follow youtube video on how to install TWRP 3.2.1-2 so I can ... Read more",
+    "host_name": "community.e.foundation",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://android.stackexchange.com/questions/229697/how-to-decrypt-a-phone-in-bootloop-mode",
+    "name": "How to decrypt a phone in bootloop mode",
+    "snippet": "23-Sept-2020 — The easiest thing to do is to somehow get a encryption-supported recovery to boot, decrypt data, extract it into PC, and reset data partition. Read more\n23-Sept-2020 — After login,you can decrypt data in TWRP . If you see some error/crash after android bootup due to dirty-flash,install magisk and create backup ...",
+    "host_name": "android.stackexchange.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://xdaforums.com/t/recovery-twrp-for-android-12-13-and-14.4638631",
+    "name": "Development - [Recovery] TWRP for Android 12, 13 and 14",
+    "snippet": "28-Oct-2023 — This TWRP can decrypt Android 12 , 13 and 14 AOSP roms, havent tested with MIUI or custom MIUI roms tested with: - evolution x 14 - voltageos 14 - AOSPA 14",
+    "host_name": "xdaforums.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]
