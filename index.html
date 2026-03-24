@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.8 — MTK Decrypt Inspector</title>
+<title>CryptX v3.9 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.8</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.9</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -3618,6 +3618,105 @@ function computeVerdict(){
 
 // =================================================================
 
+// Helper: Get actual file content snippet for a given file pattern
+function getActualFileSnippet(filePattern, maxLines = 50){
+  // Find matching file in tree
+  const pattern = filePattern.toLowerCase();
+  let matchedFile = null;
+  let matchedContent = '';
+
+  // Check various file categories
+  const allFiles = [
+    ...(S.files.boardconfig || []),
+    ...(S.files.mk || []),
+    ...(S.files.initrc || []),
+    ...(S.files.fstab || []),
+    ...(S.files.xml || []),
+    ...(S.files.prop || [])
+  ];
+
+  for(const fp of allFiles){
+    const fileName = fp.toLowerCase().split('/').pop();
+    const filePath = fp.toLowerCase();
+
+    // Match by pattern
+    if(fileName.includes(pattern) || filePath.includes(pattern) ||
+       pattern.includes(fileName.replace(/\.[^.]+$/, ''))){
+      matchedFile = fp;
+      break;
+    }
+  }
+
+  if(matchedFile && S.fileContents[matchedFile]){
+    const content = S.fileContents[matchedFile];
+    const lines = content.split('\n').slice(0, maxLines);
+    return {
+      path: matchedFile,
+      content: content,
+      lines: lines,
+      exists: true
+    };
+  }
+
+  return { path: null, content: '', lines: [], exists: false };
+}
+
+// Helper: Check if a line already exists in file content
+function lineExistsInFile(content, searchPattern){
+  if(!content) return false;
+  const pattern = searchPattern.toLowerCase().trim();
+  const lines = content.split('\n');
+  return lines.some(line => line.toLowerCase().trim().includes(pattern));
+}
+
+// Helper: Generate smart diff with actual file context
+function generateSmartFix(fixInfo){
+  const { targetFile, additions, removals, context, actualContent } = fixInfo;
+
+  // If no actual edits needed (all additions already present)
+  if(additions && additions.length > 0 && actualContent){
+    const allPresent = additions.every(add =>
+      lineExistsInFile(actualContent, add.replace(/^[+]\s*/, '').trim())
+    );
+    if(allPresent){
+      return { diff: '', needsEdit: false, reason: 'All changes already applied' };
+    }
+  }
+
+  let diff = '';
+
+  // Add file header
+  if(targetFile){
+    diff += `FILE: ${targetFile}\n`;
+  }
+
+  // Add context section
+  if(context && context.length > 0){
+    diff += `@@ Context @@\n`;
+    for(const ctx of context){
+      diff += `  ${ctx}\n`;
+    }
+  }
+
+  // Add removals
+  if(removals && removals.length > 0){
+    diff += `@@ Remove these lines @@\n`;
+    for(const rem of removals){
+      diff += `-${rem}\n`;
+    }
+  }
+
+  // Add additions
+  if(additions && additions.length > 0){
+    diff += `@@ Add these lines @@\n`;
+    for(const add of additions){
+      diff += `+${add}\n`;
+    }
+  }
+
+  return { diff, needsEdit: true, reason: '' };
+}
+
 function analyzeRootCauses(){
 
   S.rootCauses=[];const bc=S.boardConfig.all;
@@ -3626,7 +3725,7 @@ function analyzeRootCauses(){
 
   const tee=S.tee.type,sig=TEE_DB[tee];
 
-  function rc(sev,prob,title,desc,evidence,fix,androidVersion=null){
+  function rc(sev,prob,title,desc,evidence,fix,androidVersion=null,fileContext=null){
     S.rootCauses.push({
       severity:sev,
       probability:prob,
@@ -3634,7 +3733,8 @@ function analyzeRootCauses(){
       description:desc,
       evidence:evidence||[],
       fix:fix||'',
-      androidVersion:androidVersion
+      androidVersion:androidVersion,
+      fileContext:fileContext  // { targetFile, actualContent, needsEdit }
     });
   }
 
@@ -5759,7 +5859,7 @@ function renderIssues(){
 function renderIssueCard(rc){
   const cls=rc.severity==='critical'?'rc-critical':rc.severity==='high'?'rc-high':'rc-medium';
   const col=rc.severity==='critical'?'var(--md-error)':rc.severity==='high'?'var(--md-warning)':'var(--md-tertiary)';
-  
+
   let card=`<div class="rc-card ${cls}" style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:start;gap:12px;margin-bottom:8px;flex-wrap:wrap;">
 
     <div class="title-small">${esc(rc.title)}</div>
@@ -5775,13 +5875,129 @@ function renderIssueCard(rc){
 
     ${rc.evidence.map(e=>`<div class="body-small path-text" style="color:var(--md-on-surface-variant);padding-left:12px;border-left:2px solid var(--md-outline-variant);margin:4px 0">${esc(e)}</div>`).join('')}</div>`;
 
-  if(rc.fix)card+=`<div class="diff-block">
-    <div class="diff-header"><span class="mi" style="font-size:16px;vertical-align:middle">lightbulb</span> Suggested Fix</div>
-    ${renderGitHubDiff(rc.fix)}
-  </div>`;
+  // Smart fix rendering - validate and show actual file context
+  if(rc.fix){
+    const fixResult = validateAndRenderFix(rc);
+    if(fixResult.html){
+      card+=`<div class="diff-block">
+        <div class="diff-header"><span class="mi" style="font-size:16px;vertical-align:middle">lightbulb</span> Suggested Fix</div>
+        ${fixResult.html}
+      </div>`;
+    }else if(fixResult.noEditNeeded){
+      card+=`<div style="padding:12px;background:color-mix(in srgb,var(--md-success)10%,transparent);border-radius:12px;margin-top:8px;">
+        <div style="display:flex;align-items:center;gap:8px;color:var(--md-success)">
+          <span class="mi">check_circle</span>
+          <span class="label-small">Fix already applied</span>
+        </div>
+        <div class="body-small" style="color:var(--md-on-surface-variant);margin-top:4px">${fixResult.reason}</div>
+      </div>`;
+    }
+  }
 
   card+=`</div>`;
   return card;
+}
+
+// Validate fix against actual file contents and render appropriately
+function validateAndRenderFix(rc){
+  if(!rc.fix || !rc.fix.trim()){
+    return { html: '', noEditNeeded: false };
+  }
+
+  // Parse fix text to extract target file and additions
+  const lines = rc.fix.split('\n');
+  let targetFile = null;
+  let additions = [];
+  let context = [];
+  let inAddSection = false;
+
+  for(const line of lines){
+    // Detect file pattern
+    const fileMatch = line.match(/^(?:FILE|file|File)[:\s]+(.+)$/);
+    if(fileMatch){
+      targetFile = fileMatch[1].trim();
+      continue;
+    }
+
+    // Track additions
+    if(line.startsWith('+') && !line.startsWith('++')){
+      additions.push(line.substring(1).trim());
+      inAddSection = true;
+    }else if(line.startsWith('#') || line.startsWith('@@') || (!line.startsWith('+') && !line.startsWith('-'))){
+      if(line.trim() && !line.startsWith('FILE')){
+        context.push(line.replace(/^#\s*/, '').trim());
+      }
+    }
+  }
+
+  // If we have a target file, check if additions already exist
+  if(targetFile && additions.length > 0){
+    const snippet = getActualFileSnippet(targetFile);
+    if(snippet.exists && snippet.content){
+      // Check if all additions already exist in the file
+      const allPresent = additions.every(add => {
+        const searchTerm = add.replace(/^\s*/, '').split(/\s+/)[0]; // First token
+        return lineExistsInFile(snippet.content, searchTerm) ||
+               lineExistsInFile(snippet.content, add.replace(/[\\()]/g, ''));
+      });
+
+      if(allPresent){
+        return { html: '', noEditNeeded: true, reason: `All required changes already present in ${snippet.path}` };
+      }
+
+      // Show actual file content with diff
+      return {
+        html: renderSmartDiff(snippet, additions, context, targetFile),
+        noEditNeeded: false
+      };
+    }
+  }
+
+  // Fallback to standard diff rendering
+  return { html: renderGitHubDiff(rc.fix), noEditNeeded: false };
+}
+
+// Render diff with actual file content context
+function renderSmartDiff(snippet, additions, context, targetFile){
+  let html = '';
+
+  // Show actual file header
+  html += `<div class="diff-file-header">
+    <span class="mi" style="font-size:16px">description</span>
+    <span style="flex:1">${esc(snippet.path)}</span>
+    <span class="md-chip" style="font-size:10px;background:var(--md-primary)20;color:var(--md-primary)">Actual file</span>
+  </div>`;
+
+  // Show relevant existing content (last few lines before edit point)
+  const existingLines = (snippet.lines || []).slice(-15);
+  if(existingLines.length > 0){
+    html += `<div style="padding:8px 16px;background:var(--md-surface-container-lowest);border-bottom:1px solid var(--md-outline-variant);">
+      <div class="label-small" style="color:var(--md-outline);margin-bottom:4px">Current content:</div>
+    </div>`;
+    for(const line of existingLines.slice(0, 8)){
+      if(line && line.trim()){
+        html += `<div class="diff-line diff-context">
+          <span class="diff-line-num">•</span>
+          <span>${esc(line)}</span>
+        </div>`;
+      }
+    }
+  }
+
+  // Show what needs to be added
+  if(additions.length > 0){
+    html += `<div style="padding:8px 16px;background:color-mix(in srgb,var(--md-success)10%,transparent);border-bottom:1px solid var(--md-outline-variant);">
+      <div class="label-small" style="color:var(--md-success)">Add these lines:</div>
+    </div>`;
+    for(const add of additions){
+      html += `<div class="diff-line diff-add">
+        <span class="diff-line-num">+</span>
+        <span><span class="diff-add-text">+</span>${esc(add)}</span>
+      </div>`;
+    }
+  }
+
+  return html;
 }
 
 function renderBinCheck(){
