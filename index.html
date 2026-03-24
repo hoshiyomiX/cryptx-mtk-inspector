@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.22 — MTK Decrypt Inspector</title>
+<title>CryptX v3.23 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.22</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.23</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -5639,90 +5639,6 @@ function renderOverview(){
 
   h+=`</div>`;
 
-  // Checks summary
-
-  h+=`<div class="section-title"><span class="mi">checklist</span> General Validations</div>`;
-
-  h+=`<div class="validation-summary-card">`;
-
-  // Define category order and grouping
-  const categoryOrder = ['TEE','Keymaster','Gatekeeper','Fstab','BoardConfig','Services','Binaries','CrossCheck','Version','Version Flags','Version Services','Version Libraries','Version Packages','Version Keymaster','Version Crypto','A15+','VINTF','Kernel','Libraries','Trustonic'];
-  const versionCategories = ['Version','Version Flags','Version Services','Version Libraries','Version Packages','Version Keymaster','Version Crypto','A15+'];
-  const cats=[...new Set(S.checks.map(c=>c.cat))].sort((a,b) => {
-    const aIdx = categoryOrder.indexOf(a);
-    const bIdx = categoryOrder.indexOf(b);
-    if(aIdx === -1 && bIdx === -1) return a.localeCompare(b);
-    if(aIdx === -1) return 1;
-    if(bIdx === -1) return -1;
-    return aIdx - bIdx;
-  });
-
-  // Group categories by type
-  const coreCategories = cats.filter(c => !versionCategories.includes(c));
-  const versionSpecificCategories = cats.filter(c => versionCategories.includes(c));
-  
-  // Render core categories first
-  for(const cat of coreCategories){
-
-    const cc=S.checks.filter(c=>c.cat===cat);
-
-    const ok=cc.filter(c=>c.ok).length;
-
-    h+=`<div class="validation-category">
-      <div class="label-large" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span class="mi" style="font-size:18px;color:${ok===cc.length?'var(--md-success)':'var(--md-warning)'}">
-        ${ok===cc.length?'check_circle':'warning'}</span>
-        ${cat} <span class="md-chip" style="font-size:10px">${ok}/${cc.length}</span>
-      </div>`;
-
-    for(const c of cc){
-
-      h+=`<div class="body-small" style="margin:6px 0;color:var(--md-on-surface-variant);padding-left:20px">
-        <span style="color:${c.ok?'var(--md-success)':'var(--md-error)'}">
-        ${c.ok?'✓':'✗'}</span> ${esc(c.label)} — <span style="color:${c.ok?'var(--md-outline)':'var(--md-error)'};">${esc(c.msg)}</span></div>`;
-
-    }
-
-    h+=`</div>`;
-
-  }
-  
-  // Render version-specific categories with highlighting
-  if(versionSpecificCategories.length > 0 && S.androidVersion?.version){
-    const verColor = S.androidVersion.color || '#9E9E9E';
-    h+=`<div style="margin-top:16px;padding-top:12px;border-top:2px solid ${verColor}30">
-      <div class="label-large" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;color:${verColor}">
-        <span class="mi" style="font-size:18px">android</span>
-        Android ${S.androidVersion.version} Specific Checks
-      </div>`;
-    
-    for(const cat of versionSpecificCategories){
-      const cc=S.checks.filter(c=>c.cat===cat);
-      if(cc.length === 0) continue;
-      
-      const ok=cc.filter(c=>c.ok).length;
-      const catColor = ok === cc.length ? 'var(--md-success)' : 'var(--md-error)';
-
-      h+=`<div class="validation-category" style="background:color-mix(in srgb,${verColor}5%,var(--md-surface-container-high))">
-        <div class="label-large" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <span class="mi" style="font-size:18px;color:${ok===cc.length?'var(--md-success)':'var(--md-error)'}">
-          ${ok===cc.length?'check_circle':'cancel'}</span>
-          ${cat} <span class="md-chip" style="font-size:10px;background:${verColor}20;color:${verColor}">${ok}/${cc.length}</span>
-        </div>`;
-
-      for(const c of cc){
-        h+=`<div class="body-small" style="margin:6px 0;color:var(--md-on-surface-variant);padding-left:20px">
-          <span style="color:${c.ok?'var(--md-success)':'var(--md-error)'}">
-          ${c.ok?'✓':'✗'}</span> ${esc(c.label)} — <span style="color:${c.ok?'var(--md-outline)':'var(--md-error)'};">${esc(c.msg)}</span></div>`;
-      }
-
-      h+=`</div>`;
-    }
-    h+=`</div>`;
-  }
-
-  h+=`</div>`;
-
   document.getElementById('tab-overview').innerHTML=h;
 
 }
@@ -5904,12 +5820,110 @@ function renderGitHubDiff(fixText){
 }
 
 function renderIssues(){
+  let h='';
+  
+  // === VALIDATIONS SECTION (from S.checks) ===
+  h+=`<div class="section-title"><span class="mi">checklist</span> Validations</div>`;
+  
+  if(S.checks.length === 0){
+    h+=`<div class="md-card" style="text-align:center;padding:24px;margin-bottom:20px;">
+      <span class="mi" style="font-size:32px;color:var(--md-outline)">help_outline</span>
+      <div class="body-medium" style="margin-top:8px;color:var(--md-on-surface-variant)">No validations run yet</div>
+    </div>`;
+  } else {
+    // Define category order and grouping
+    const categoryOrder = ['TEE','Keymaster','Gatekeeper','Fstab','BoardConfig','Services','Binaries','CrossCheck','Version','Version Flags','Version Services','Version Libraries','Version Packages','Version Keymaster','Version Crypto','A15+','VINTF','Kernel','Libraries','Trustonic'];
+    const versionCategories = ['Version','Version Flags','Version Services','Version Libraries','Version Packages','Version Keymaster','Version Crypto','A15+'];
+    
+    const cats=[...new Set(S.checks.map(c=>c.cat))].sort((a,b) => {
+      const aIdx = categoryOrder.indexOf(a);
+      const bIdx = categoryOrder.indexOf(b);
+      if(aIdx === -1 && bIdx === -1) return a.localeCompare(b);
+      if(aIdx === -1) return 1;
+      if(bIdx === -1) return -1;
+      return aIdx - bIdx;
+    });
 
-  let h=`<div class="section-title"><span class="mi">report</span> Found Issues</div>`;
+    // Group categories by type
+    const coreCategories = cats.filter(c => !versionCategories.includes(c));
+    const versionSpecificCategories = cats.filter(c => versionCategories.includes(c));
+    
+    // Summary stats
+    const totalChecks = S.checks.length;
+    const passedChecks = S.checks.filter(c=>c.ok).length;
+    const failedChecks = totalChecks - passedChecks;
+    
+    h+=`<div class="validation-summary-card" style="margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span class="mi" style="font-size:24px;color:${failedChecks===0?'var(--md-success)':'var(--md-warning)'}">${failedChecks===0?'check_circle':'warning'}</span>
+        <div>
+          <span class="label-large">${passedChecks}/${totalChecks} passed</span>
+          ${failedChecks>0?`<span class="md-chip chip-error" style="margin-left:8px">${failedChecks} failed</span>`:''}
+        </div>
+      </div>
+    </div>`;
+    
+    // Render core categories first
+    for(const cat of coreCategories){
+      const cc=S.checks.filter(c=>c.cat===cat);
+      const ok=cc.filter(c=>c.ok).length;
 
-  if(S.rootCauses.length===0){h+=`<div class="md-card" style="text-align:center;padding:40px;"><span class="mi" style="font-size:48px;color:var(--md-success)">check_circle</span><div class="title-medium" style="margin-top:12px;color:var(--md-success)">No issues found!</div></div>`;
+      h+=`<div class="validation-category" style="margin-bottom:12px;">
+        <div class="label-large" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span class="mi" style="font-size:18px;color:${ok===cc.length?'var(--md-success)':'var(--md-warning)'}">
+          ${ok===cc.length?'check_circle':'warning'}</span>
+          ${cat} <span class="md-chip" style="font-size:10px">${ok}/${cc.length}</span>
+        </div>`;
 
-    document.getElementById('tab-issues').innerHTML=h;return;}
+      for(const c of cc){
+        h+=`<div class="body-small" style="margin:6px 0;color:var(--md-on-surface-variant);padding-left:20px">
+          <span style="color:${c.ok?'var(--md-success)':'var(--md-error)'}">
+          ${c.ok?'✓':'✗'}</span> ${esc(c.label)} — <span style="color:${c.ok?'var(--md-outline)':'var(--md-error)'};">${esc(c.msg)}</span></div>`;
+      }
+      h+=`</div>`;
+    }
+    
+    // Render version-specific categories with highlighting
+    if(versionSpecificCategories.length > 0 && S.androidVersion?.version){
+      const verColor = S.androidVersion.color || '#9E9E9E';
+      h+=`<div style="margin-top:16px;padding-top:12px;border-top:2px solid ${verColor}30">
+        <div class="label-large" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;color:${verColor}">
+          <span class="mi" style="font-size:18px">android</span>
+          Android ${S.androidVersion.version} Specific Checks
+        </div>`;
+      
+      for(const cat of versionSpecificCategories){
+        const cc=S.checks.filter(c=>c.cat===cat);
+        if(cc.length === 0) continue;
+        
+        const ok=cc.filter(c=>c.ok).length;
+
+        h+=`<div class="validation-category" style="background:color-mix(in srgb,${verColor}5%,var(--md-surface-container-high));margin-bottom:12px;">
+          <div class="label-large" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span class="mi" style="font-size:18px;color:${ok===cc.length?'var(--md-success)':'var(--md-error)'}">
+            ${ok===cc.length?'check_circle':'cancel'}</span>
+            ${cat} <span class="md-chip" style="font-size:10px;background:${verColor}20;color:${verColor}">${ok}/${cc.length}</span>
+          </div>`;
+
+        for(const c of cc){
+          h+=`<div class="body-small" style="margin:6px 0;color:var(--md-on-surface-variant);padding-left:20px">
+            <span style="color:${c.ok?'var(--md-success)':'var(--md-error)'}">
+            ${c.ok?'✓':'✗'}</span> ${esc(c.label)} — <span style="color:${c.ok?'var(--md-outline)':'var(--md-error)'};">${esc(c.msg)}</span></div>`;
+        }
+        h+=`</div>`;
+      }
+      h+=`</div>`;
+    }
+  }
+  
+  // === ISSUES SECTION (from S.rootCauses) ===
+  h+=`<div class="section-title" style="margin-top:24px;"><span class="mi">report</span> Found Issues</div>`;
+
+  if(S.rootCauses.length===0){
+    h+=`<div class="md-card" style="text-align:center;padding:40px;"><span class="mi" style="font-size:48px;color:var(--md-success)">check_circle</span><div class="title-medium" style="margin-top:12px;color:var(--md-success)">No issues found!</div></div>`;
+    document.getElementById('tab-issues').innerHTML=h;
+    return;
+  }
 
   // Group issues by Android version
   const generalIssues = [];
