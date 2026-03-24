@@ -4354,8 +4354,10 @@ ${missingVintf.map(v => `+ PRODUCT_PACKAGES += ${v}`).join('\n')}`, ver);
       bc['TARGET_PREBUILT_KERNEL'] || 
       bc['BOARD_PREBUILT_KERNEL'] ||
       bc['PREBUILT_KERNEL'] ||
+      bc['TARGET_NO_KERNEL'] === 'true' ||  // No kernel build = uses prebuilt
       S.deviceMk.raw.toLowerCase().includes('prebuilt_kernel') ||
       S.deviceMk.raw.toLowerCase().includes('target_prebuilt_kernel') ||
+      S.boardConfig.raw.toLowerCase().includes('target_no_kernel') ||
       S.tree.some(f => /prebuilt.*kernel|Image\.gz|Image|zImage|bzImage/i.test(f.path));
     
     // Check for kernel config files that might indicate built-in modules
@@ -4378,31 +4380,33 @@ ${missingVintf.map(v => `+ PRODUCT_PACKAGES += ${v}`).join('\n')}`, ver);
     );
     
     if(missingModules.length > 0){
-      // Lower severity if prebuilt kernel is detected
-      const severity = hasPrebuiltKernel ? 'low' : 'medium';
-      const probability = hasPrebuiltKernel ? 30 : 50;
-      const note = hasPrebuiltKernel 
-        ? ' (Prebuilt kernel detected - modules may be built-in)' 
-        : (hasKernelConfig ? ' (Check kernel defconfig for CONFIG_* options)' : '');
-      
-      rc(severity, probability, `Kernel Module Support${note}`,
-        `Kernel modules for Android ${ver} encryption: ${missingModules.join(', ')}`,
-        [
-          ...(hasPrebuiltKernel ? ['Prebuilt kernel detected - skipping cmdline requirement'] : []),
-          ...missingModules.map(m => `Not in cmdline: ${m}`),
-          ...(usesWrappedKey ? ['wrappedkey_v0 detected - inlinecrypt recommended'] : [])
-        ],
-        `FILE: BoardConfig.mk
+      // Skip entirely if TARGET_NO_KERNEL=true (prebuilt kernel)
+      if(hasPrebuiltKernel){
+        // Just add info check, not a warning
+        chk('kernel_modules_info','Kernel','Kernel Modules (Prebuilt)',true,3,
+          `Prebuilt kernel detected - modules assumed built-in`,
+          `Kernel uses prebuilt binary - cmdline check skipped`);
+      } else {
+        const severity = 'medium';
+        const probability = 50;
+        const note = hasKernelConfig ? ' (Check kernel defconfig for CONFIG_* options)' : '';
+        
+        rc(severity, probability, `Kernel Module Support${note}`,
+          `Kernel modules for Android ${ver} encryption: ${missingModules.join(', ')}`,
+          [
+            ...missingModules.map(m => `Not in cmdline: ${m}`),
+            ...(usesWrappedKey ? ['wrappedkey_v0 detected - inlinecrypt recommended'] : [])
+          ],
+          `FILE: BoardConfig.mk
 
-# Add kernel cmdline for encryption modules (if using source kernel):
+# Add kernel cmdline for encryption modules:
 + BOARD_KERNEL_CMDLINE += ${missingModules.join(' ')}
 
 # Or verify kernel config has these options:
 # CONFIG_BLK_INLINE_ENCRYPTION=y
 # CONFIG_FS_ENCRYPTION=y
-# CONFIG_F2FS_FS_COMPRESSION=y (for f2fs_compress)
-
-# If using prebuilt kernel, ensure these are compiled in or remove the check.`, ver);
+# CONFIG_F2FS_FS_COMPRESSION=y (for f2fs_compress)`, ver);
+      }
     }
   }
   
