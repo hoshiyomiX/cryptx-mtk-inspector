@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.23 — MTK Decrypt Inspector</title>
+<title>CryptX v3.24 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -116,11 +116,11 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
 .chip-tertiary{background:color-mix(in srgb,var(--md-tertiary) 15%,transparent);color:var(--md-tertiary);border-color:color-mix(in srgb,var(--md-tertiary) 30%,transparent);}
 
+.chip-warning{background:color-mix(in srgb,var(--md-warning) 15%,transparent);color:var(--md-warning);border-color:color-mix(in srgb,var(--md-warning) 30%,transparent);}
+
 .chip-error{background:color-mix(in srgb,var(--md-error) 15%,transparent);color:var(--md-error);border-color:color-mix(in srgb,var(--md-error) 30%,transparent);}
 
 .chip-success{background:color-mix(in srgb,var(--md-success) 15%,transparent);color:var(--md-success);border-color:color-mix(in srgb,var(--md-success) 30%,transparent);}
-
-.chip-warning{background:color-mix(in srgb,var(--md-warning) 15%,transparent);color:var(--md-warning);border-color:color-mix(in srgb,var(--md-warning) 30%,transparent);}
 
 .md-input-outlined{width:100%;padding:16px 18px;background:transparent;border:1px solid var(--md-outline-variant);border-radius:16px;color:var(--md-on-surface);font-family:inherit;font-size:15px;transition:all .25s cubic-bezier(.4,0,.2,1);outline:none;}
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.23</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.24</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -3060,98 +3060,182 @@ function runValidation(){
 
   const teeSvcs=S.initServices.filter(s=>s.isTEE);
 
-  function chk(id,cat,label,test,weight,pass_msg,fail_msg,severity='auto'){
-
-    S.checks.push({id,cat,label,ok:!!test,weight,msg:test?pass_msg:fail_msg,severity});
-
+  // Enhanced chk() with fix snippet support
+  // fix: string with diff-style fix suggestion (passed when test fails)
+  function chk(id,cat,label,test,weight,pass_msg,fail_msg,fix=''){
+    S.checks.push({id,cat,label,ok:!!test,weight,msg:test?pass_msg:fail_msg,severity:test?'':(weight>=14?'critical':weight>=10?'high':'auto'),fix:test?'':fix});
   }
 
-  chk('tee_detected','TEE','TEE Type Identified',tee!=='unknown',15,`${sig?.name} (${S.tee.confidence}%)`,'No TEE detected');
+  chk('tee_detected','TEE','TEE Type Identified',tee!=='unknown',15,
+    `${sig?.name} (${S.tee.confidence}%)`,'No TEE detected',
+    `FILE: BoardConfig.mk
+# Ensure device uses a supported TEE (Trustonic/TrustKernel/Beanpod/Microtrust)
+# Check vendor binaries for: mcDriverDaemon, teed, isee_daemon, or teei_daemon`);
 
-  chk('tee_daemon_svc','TEE','TEE Daemon in init.rc',teeSvcs.length>0,18,
-
-    `Found: ${teeSvcs.map(s=>s.name).join(', ')}`,`No TEE daemon service! ${sig?sig.daemons[0]+' required':''}`);
+  chk('tee_daemon_svc','TEE','TEE Daemon Service',teeSvcs.length>0,18,
+    `Found: ${teeSvcs.length} TEE service(s)`,`No TEE daemon service in init files`,
+    `FILE: init.recovery.*.rc or relevant .rc file
+# Add TEE daemon service for detected TEE type:
++ service tee_daemon /vendor/bin/tee_binary
++     class core
++     user root
++     group root system drmrpc
++     seclabel u:r:recovery:s0
+# Adjust binary path and service name based on your device's TEE`);
 
   const teeBinOk=teeSvcs.length>0&&S.binaryChecks.some(b=>b.svc.isTEE&&(b.status==='found'||b.status==='copied'));
 
-  chk('tee_daemon_bin','TEE','TEE Daemon Binary EXISTS',teeBinOk||teeSvcs.length===0,16,
-
+  chk('tee_daemon_bin','TEE','TEE Daemon Binary',teeBinOk||teeSvcs.length===0,16,
     teeSvcs.length>0?'Binary found in tree':'N/A',
-
-    `MISSING: ${teeSvcs.map(s=>s.binary).join(', ')}`,'critical');
+    `TEE binary NOT in tree: ${teeSvcs.map(s=>s.binary).filter(b=>b).join(', ')}`,
+    `FILE: device/*/prebuilt/tee/
+# Extract TEE daemon binary from stock vendor partition:
++ adb pull /vendor/bin/tee_binary
+# Add to device.mk:
++ PRODUCT_COPY_FILES += \\
++     $(LOCAL_PATH)/prebuilt/tee/tee_binary:vendor/bin/tee_binary`);
 
   const teeTriggerOk=teeSvcs.length===0||teeSvcs.some(s=>s.triggers.length>0||!s.disabled);
 
   chk('tee_daemon_trigger','TEE','TEE Daemon Can Start',teeTriggerOk,10,
+    teeSvcs.length>0?'Service can start':'N/A',
+    'TEE daemon disabled with no trigger',
+    `FILE: init.recovery.*.rc
+# Remove "disabled" or add a trigger:
+- service tee_daemon /vendor/bin/...
+-     disabled
++ service tee_daemon /vendor/bin/...
++     oneshot
 
-    teeSvcs.length>0?`${teeSvcs.some(s=>!s.disabled)?'Not disabled':'Has trigger'}`:'N/A','Disabled with NO trigger!');
++ on property:hwservicemanager.ready=true
++     start tee_daemon`);
 
   if(tee==='trustkernel'){
-
     const hasSup=S.initServices.some(s=>/tee[-_]supplicant/i.test(s.name+s.binary));
-
-    chk('tk_supplicant','TEE','TrustKernel tee-supplicant',hasSup,12,'Found','Missing! TrustKernel requires tee-supplicant alongside teed');
-
+    chk('tk_supplicant','TEE','TrustKernel tee-supplicant',hasSup,12,
+      'tee-supplicant found','Missing tee-supplicant (required for TrustKernel)',
+      `FILE: init.recovery.*.rc
+# TrustKernel requires tee-supplicant alongside teed:
++ service tee-supplicant /vendor/bin/tee-supplicant
++     class core
++     user root
++     group root system
++     seclabel u:r:recovery:s0`);
   }
 
   chk('keymaster_svc','Keymaster','Keymaster/Keymint Service',kmSvcs.length>0,18,
-
-    `Found: ${kmSvcs.map(s=>s.name).join(', ')}`,'NO keymaster service');
+    `Found: ${kmSvcs.length} keymaster service(s)`,'No keymaster/keymint service',
+    `FILE: init.recovery.*.rc
+# Add keymaster HAL service:
++ service keymaster /vendor/bin/hw/android.hardware.keymaster@4.0-service
++     class early_hal
++     user system
++     group system drmrpc
++     seclabel u:r:recovery:s0
+# Adjust version (4.0/4.1/keymint) based on Android version`);
 
   const kmBinOk=kmSvcs.length>0&&S.binaryChecks.some(b=>b.svc.isCrypto&&(b.status==='found'||b.status==='copied'));
 
-  chk('keymaster_bin','Keymaster','Keymaster Binary EXISTS',kmBinOk||kmSvcs.length===0,16,
-
-    kmSvcs.length>0?'Binary found':'N/A',`MISSING: ${kmSvcs.map(s=>s.binary).join(', ')}`,'critical');
+  chk('keymaster_bin','Keymaster','Keymaster Binary',kmBinOk||kmSvcs.length===0,16,
+    kmSvcs.length>0?'Binary found in tree':'N/A',
+    `Keymaster binary NOT in tree: ${kmSvcs.map(s=>s.binary).filter(b=>b).join(', ')}`,
+    `FILE: device/*/prebuilt/keymaster/
+# Extract keymaster binary from stock vendor partition:
++ adb pull /vendor/bin/hw/android.hardware.keymaster@4.x-service
+# Add to device.mk:
++ PRODUCT_COPY_FILES += \\
++     $(LOCAL_PATH)/prebuilt/keymaster/keymaster-service:vendor/bin/hw/keymaster-service`);
 
   const kmTriggerOk=kmSvcs.length===0||kmSvcs.some(s=>s.triggers.length>0||!s.disabled);
 
-  chk('keymaster_trigger','Keymaster','Keymaster Can Start',kmTriggerOk,8,'Can start','Disabled with no trigger!');
+  chk('keymaster_trigger','Keymaster','Keymaster Can Start',kmTriggerOk,8,
+    'Service can start','Keymaster disabled with no trigger',
+    `FILE: init.recovery.*.rc
+# Remove "disabled" or add trigger to start keymaster:
++ on property:hwservicemanager.ready=true
++     start keymaster`);
 
   if(tee!=='unknown'&&kmSvcs.length>0){
-
     const kmMatchesTee=kmSvcs.some(s=>{const n=(s.name+' '+s.binary).toLowerCase();return sig.kmBins.some(k=>n.includes(k.toLowerCase().split('/').pop().split('@')[0]));});
-
     chk('km_tee_match','Keymaster','Keymaster Matches TEE',kmMatchesTee||kmSvcs.some(s=>s.binary.toLowerCase().includes(tee)),8,
-
-      `Matches ${sig.name}`,`Keymaster may not match detected TEE (${sig.name})`);
-
+      `Matches ${sig.name}`,`Keymaster may not match detected TEE (${sig.name})`,
+      `FILE: device.mk or BoardConfig.mk
+# Ensure keymaster binary matches your TEE type (${sig.name})
+# Check vendor for correct keymaster binary:
+# Trustonic: android.hardware.keymaster@4.x-service.trustonic
+# TrustKernel: android.hardware.keymaster@4.x-service.trustkernel
+# Beanpod: android.hardware.keymaster@4.x-service.beanpod
+# Microtrust: android.hardware.keymaster@4.x-service.microtrust`);
   }
 
   chk('gatekeeper_svc','Gatekeeper','Gatekeeper Service',gkSvcs.length>0,8,
-
-    `Found: ${gkSvcs.map(s=>s.name).join(', ')}`,'No gatekeeper');
+    `Found: ${gkSvcs.length} gatekeeper service(s)`,'No gatekeeper service',
+    `FILE: init.recovery.*.rc
+# Add gatekeeper HAL service:
++ service gatekeeper /vendor/bin/hw/android.hardware.gatekeeper@1.0-service
++     class hal
++     user system
++     group system
++     seclabel u:r:recovery:s0`);
 
   const gkBinOk=gkSvcs.length>0&&S.binaryChecks.some(b=>b.svc.isGK&&(b.status==='found'||b.status==='copied'));
 
-  chk('gatekeeper_bin','Gatekeeper','Gatekeeper Binary EXISTS',gkBinOk||gkSvcs.length===0,6,'Found or N/A','Gatekeeper binary NOT FOUND');
+  chk('gatekeeper_bin','Gatekeeper','Gatekeeper Binary',gkBinOk||gkSvcs.length===0,6,
+    'Binary found or N/A','Gatekeeper binary NOT in tree',
+    `FILE: device/*/prebuilt/gatekeeper/
+# Extract gatekeeper binary from stock vendor:
++ adb pull /vendor/bin/hw/android.hardware.gatekeeper@1.0-service
+# Add to device.mk:
++ PRODUCT_COPY_FILES += \\
++     $(LOCAL_PATH)/prebuilt/gatekeeper/gatekeeper-service:vendor/bin/hw/gatekeeper-service`);
 
-  chk('fstab_exists','Fstab','Fstab File Exists',S.fstab.length>0,12,`${S.fstab.length} fstab file(s)`,'No fstab!');
+  chk('fstab_exists','Fstab','Fstab File Exists',S.fstab.length>0,12,
+    `${S.fstab.length} fstab file(s)`,'No fstab file found',
+    `FILE: recovery.fstab or twrp.fstab
+# Create fstab file with /data entry:
++ /data ext4 /dev/block/by-name/userdata flags=fileencryption=aes-256-xts:aes-256-cts:v2
+# For devices with wrappedkey:
++ /data f2fs /dev/block/by-name/userdata flags=fileencryption=aes-256-xts:aes-256-cts:v2+wrappedkey_v0+inlinecrypt_optimized`);
 
-  chk('fstab_data','Fstab','/data Entry',dataE.length>0,12,'/data found','No /data in fstab!');
+  chk('fstab_data','Fstab','/data Entry',dataE.length>0,12,
+    '/data entry found','No /data entry in fstab',
+    `FILE: recovery.fstab
+# Add /data entry with encryption flags:
++ /data ext4 /dev/block/by-name/userdata flags=fileencryption=aes-256-xts:aes-256-cts:v2`);
 
   chk('fstab_fbe','Fstab','fileencryption= on /data',dataE.some(e=>e.fbe),14,
-
-    `${dataE.find(e=>e.fbe)?.fbeSpec||'set'}`,dataE.length===0?'No /data':'No fileencryption= on /data');
+    `${dataE.find(e=>e.fbe)?.fbeSpec||'set'}`,dataE.length===0?'No /data entry':'No fileencryption flag on /data',
+    `FILE: recovery.fstab
+# Add fileencryption flag to /data entry:
+- /data ext4 /dev/block/by-name/userdata
++ /data ext4 /dev/block/by-name/userdata flags=fileencryption=aes-256-xts:aes-256-cts:v2`);
 
   const fbeSpec=dataE.find(e=>e.fbe)?.fbeSpec||'';
 
-  chk('fstab_spec','Fstab','FBE Cipher Valid',fbeSpec&&/aes-256/i.test(fbeSpec),5,`Valid: ${fbeSpec}`,fbeSpec?`Unusual: ${fbeSpec}`:'No spec');
+  chk('fstab_spec','Fstab','FBE Cipher Valid',fbeSpec&&/aes-256/i.test(fbeSpec),5,
+    `Valid: ${fbeSpec}`,fbeSpec?`Unusual cipher: ${fbeSpec}`:'No encryption spec',
+    `FILE: recovery.fstab
+# Standard FBE spec format:
+- /data ext4 /dev/block/by-name/userdata flags=fileencryption=xxx
++ /data ext4 /dev/block/by-name/userdata flags=fileencryption=aes-256-xts:aes-256-cts:v2`);
 
   chk('fstab_meta','Fstab','metadata_encryption',dataE.some(e=>e.metaEnc)||!dataE.some(e=>e.fbe),4,
-
-    dataE.some(e=>e.metaEnc)?`${dataE.find(e=>e.metaEnc)?.metaSpec||'set'}`:'Not required','FBE but no metadata_encryption');
+    dataE.some(e=>e.metaEnc)?`${dataE.find(e=>e.metaEnc)?.metaSpec||'set'}`:'Not required',
+    'FBE enabled but no metadata_encryption',
+    `FILE: recovery.fstab
+# Add metadata_encryption for FBE devices:
+- /data ext4 /dev/block/by-name/userdata flags=fileencryption=aes-256-xts:aes-256-cts:v2
++ /data ext4 /dev/block/by-name/userdata flags=fileencryption=aes-256-xts:aes-256-cts:v2,metadata_encryption=aes-256-xts`);
 
   if(dataE.some(e=>e.wrapped)){
-
     const support=Object.values(bc).some(v=>/inlinecrypt|INLINE_ENCRYPTION/i.test(v))||
-
       (bc['BOARD_KERNEL_CMDLINE']||'').includes('inlinecrypt');
-
     chk('fstab_wrapped','Fstab','wrappedkey Kernel Support',support,10,
-
-      'inlinecrypt support found','wrappedkey_v0 but NO inlinecrypt support','critical');
-
+      'inlinecrypt support found','wrappedkey_v0 requires inlinecrypt kernel support',
+      `FILE: BoardConfig.mk
+# Add inlinecrypt support for wrappedkey devices:
++ BOARD_KERNEL_CMDLINE += inlinecrypt
+# Or remove wrappedkey from fstab if not needed`);
   }
 
   const hasFstabFBE=dataE.some(e=>e.fbe);
@@ -3161,29 +3245,25 @@ function runValidation(){
   const modernRecovery=!bc['TW_INCLUDE_CRYPTO']&&!bc['TW_INCLUDE_CRYPTO_FBE']&&hasFstabFBE;
 
   if(modernRecovery){
-
-    chk('bc_crypto','BoardConfig','Crypto Config',true,14,'Modern build — auto-detected from fstab (TW_INCLUDE_CRYPTO not needed)','');
-
-    chk('bc_fbe','BoardConfig','FBE Config',true,14,'Modern build — auto-detected from fstab (TW_INCLUDE_CRYPTO_FBE not needed)','');
-
+    chk('bc_crypto','BoardConfig','Crypto Config',true,14,
+      'Modern build — auto-detected from fstab','');
+    chk('bc_fbe','BoardConfig','FBE Config',true,14,
+      'Modern build — auto-detected from fstab','');
   }else{
-
     chk('bc_crypto','BoardConfig','TW_INCLUDE_CRYPTO',
-
       bc['TW_INCLUDE_CRYPTO']==='true'||hasFstabEncrypt,12,
-
       bc['TW_INCLUDE_CRYPTO']==='true'?'Explicitly enabled':(hasFstabEncrypt?'Auto-detected from fstab':'Not configured'),
-
-      'No crypto config','auto');
-
+      'No crypto configuration found',
+      `FILE: BoardConfig.mk
+# Enable crypto support:
++ TW_INCLUDE_CRYPTO := true`);
     chk('bc_fbe','BoardConfig','TW_INCLUDE_CRYPTO_FBE',
-
       bc['TW_INCLUDE_CRYPTO_FBE']==='true'||hasFstabFBE,12,
-
       bc['TW_INCLUDE_CRYPTO_FBE']==='true'?'Explicitly enabled':(hasFstabFBE?'Auto-detected from fstab FBE':'Not configured'),
-
-      'No FBE config','auto');
-
+      'No FBE configuration found',
+      `FILE: BoardConfig.mk
+# Enable FBE support:
++ TW_INCLUDE_CRYPTO_FBE := true`);
   }
 
   // FBE Metadata Decrypt check
@@ -3195,35 +3275,45 @@ function runValidation(){
   chk('bc_meta','BoardConfig','FBE Metadata Decrypt',
     !needsMetaFlag || bc['TW_INCLUDE_FBE_METADATA_DECRYPT']==='true',8,
     isA15Plus?'Not required for A15+':(dataE.some(e=>e.metaEnc)?(bc['TW_INCLUDE_FBE_METADATA_DECRYPT']==='true'?'Explicitly enabled':'Auto-handled'):'Not required'),
-    isA15Plus?'TW_INCLUDE_FBE_METADATA_DECRYPT should be removed for A15+':'metadata_encryption in fstab but flag not set');
+    isA15Plus?'TW_INCLUDE_FBE_METADATA_DECRYPT should be removed for A15+':'metadata_encryption in fstab but flag not set',
+    isA15Plus?`FILE: BoardConfig.mk
+# Remove for A15+:
+- TW_INCLUDE_FBE_METADATA_DECRYPT := true`:`FILE: BoardConfig.mk
+# Add for devices with metadata_encryption:
++ TW_INCLUDE_FBE_METADATA_DECRYPT := true`);
 
   chk('bc_patch','BoardConfig','PLATFORM_SECURITY_PATCH',!!bc['PLATFORM_SECURITY_PATCH'],16,
-
-    bc['PLATFORM_SECURITY_PATCH'],'NOT SET! Keymaster uses this for key derivation.','critical');
+    bc['PLATFORM_SECURITY_PATCH'],'NOT SET — Keymaster requires this for key derivation',
+    `FILE: BoardConfig.mk
+# Get from stock device:
+# adb shell getprop ro.build.version.security_patch
++ PLATFORM_SECURITY_PATCH := 2024-01-05
+# Must match stock ROM exactly!`);
 
   if(bc['PLATFORM_SECURITY_PATCH']){
-
     chk('bc_patch_fmt','BoardConfig','Patch Format (YYYY-MM-DD)',/^\d{4}-\d{2}-\d{2}$/.test(bc['PLATFORM_SECURITY_PATCH']),5,
-
-      `Valid: ${bc['PLATFORM_SECURITY_PATCH']}`,`Invalid: "${bc['PLATFORM_SECURITY_PATCH']}"`);
-
+      `Valid: ${bc['PLATFORM_SECURITY_PATCH']}`,`Invalid format: "${bc['PLATFORM_SECURITY_PATCH']}"`,
+      `FILE: BoardConfig.mk
+# Correct format is YYYY-MM-DD:
+- PLATFORM_SECURITY_PATCH := ${bc['PLATFORM_SECURITY_PATCH']}
++ PLATFORM_SECURITY_PATCH := 2024-01-05`);
   }
 
-  chk('bc_ver','BoardConfig','PLATFORM_VERSION',!!bc['PLATFORM_VERSION'],5,bc['PLATFORM_VERSION']||'?','Not set');
+  chk('bc_ver','BoardConfig','PLATFORM_VERSION',!!bc['PLATFORM_VERSION'],5,
+    bc['PLATFORM_VERSION']||'?','Not set',
+    `FILE: BoardConfig.mk
+# Set platform version:
++ PLATFORM_VERSION := 14.0.0`);
 
   chk('bc_fscrypt','BoardConfig','TW_USE_FSCRYPT_POLICY',
-
     !!bc['TW_USE_FSCRYPT_POLICY']||hasFstabFBE,3,
-
     bc['TW_USE_FSCRYPT_POLICY']?`= ${bc['TW_USE_FSCRYPT_POLICY']}`:'Auto-detected (not required)',
-
     'Not set — minor');
 
   const hwsvcInRC=/hwservicemanager/i.test(allRC);
 
   chk('hwsvc','Services','hwservicemanager',true,3,
-
-    hwsvcInRC?'Referenced in init.rc':'Auto-started by recovery (OK)','');
+    hwsvcInRC?'Referenced in init files':'Auto-started by recovery (OK)','');
 
   const teeClass=teeSvcs[0]?.className||'';const kmClass=kmSvcs[0]?.className||'';
 
@@ -3231,50 +3321,65 @@ function runValidation(){
 
   const orderOk=teeSvcs.length===0||kmSvcs.length===0||(classOrder[teeClass]||0)<=(classOrder[kmClass]||99)||teeSvcs.some(s=>s.triggers.length>0);
 
-  chk('svc_order','Services','TEE→Keymaster Order',orderOk,6,`TEE:${teeClass||'?'} KM:${kmClass||'?'}`,
-
-    `TEE (${teeClass}) after KM (${kmClass})`);
+  chk('svc_order','Services','TEE→Keymaster Order',orderOk,6,
+    `TEE:${teeClass||'?'} KM:${kmClass||'?'}`,
+    `TEE (${teeClass}) starts after Keymaster (${kmClass})`,
+    `FILE: init.recovery.*.rc
+# TEE should start before Keymaster. Adjust class or add trigger:
+# TEE: class core or early_hal
+# Keymaster: class early_hal or hal
+# Or add trigger for TEE:
++ on property:hwservicemanager.ready=true
++     start tee_daemon`);
 
   const hasSeclabel=S.initServices.filter(s=>s.isCrypto||s.isTEE).some(s=>s.seclabel.includes('recovery'));
 
   chk('seclabel','Services','Recovery SELabel',hasSeclabel||S.initServices.filter(s=>s.isCrypto||s.isTEE).length===0,4,
-
-    'seclabel u:r:recovery:s0','No recovery seclabel on crypto services');
+    'seclabel u:r:recovery:s0','No recovery seclabel on crypto services',
+    `FILE: init.recovery.*.rc
+# Add seclabel to crypto services:
+  service keymaster /vendor/bin/...
++     seclabel u:r:recovery:s0`);
 
   const critBins=S.binaryChecks.filter(b=>b.isCritical);
 
   const critOk=critBins.filter(b=>b.status==='found'||b.status==='copied').length;
 
   chk('bins_complete','Binaries',`Crypto Binaries (${critOk}/${critBins.length})`,
-
     critBins.length===0||critOk===critBins.length,15,
-
     `${critOk}/${critBins.length} present`,
-
-    `ONLY ${critOk}/${critBins.length}! Missing: ${critBins.filter(b=>b.status==='missing').map(b=>b.binName).join(', ')}`,'critical');
+    `Missing: ${critBins.filter(b=>b.status==='missing').map(b=>b.binName).join(', ')}`,
+    `FILE: device/*/prebuilt/crypto/
+# Extract missing binaries from stock vendor partition:
++ adb pull /vendor/bin/hw/missing_binary
+# Add to device.mk:
++ PRODUCT_COPY_FILES += \\
++     $(LOCAL_PATH)/prebuilt/crypto/binary_name:vendor/bin/hw/binary_name`);
 
   const propPatch=S.props.all['ro.build.version.security_patch']||S.props.all['ro.vendor.build.security_patch']||'';
 
   const bcPatch=bc['PLATFORM_SECURITY_PATCH']||'';
 
   if(propPatch&&bcPatch){
-
     chk('cross_patch','CrossCheck','Patch Level Match',propPatch===bcPatch,10,
-
-      `Match: ${propPatch}`,`MISMATCH! Props:${propPatch} BC:${bcPatch}`,'critical');
-
+      `Match: ${propPatch}`,`MISMATCH: Props=${propPatch} BC=${bcPatch}`,
+      `FILE: BoardConfig.mk
+# Security patch must match stock ROM:
+- PLATFORM_SECURITY_PATCH := ${bcPatch}
++ PLATFORM_SECURITY_PATCH := ${propPatch}`);
   }
 
   if(dataE.some(e=>e.fbe)){
-
     chk('cross_fstab_bc','CrossCheck','Fstab↔BoardConfig FBE',
-
       bc['TW_INCLUDE_CRYPTO_FBE']==='true'||hasFstabFBE,3,
-
       bc['TW_INCLUDE_CRYPTO_FBE']==='true'?'Both explicit':'Fstab has FBE — auto-detected',
-
-      'No FBE anywhere');
-
+      'No FBE anywhere',
+      `FILE: BoardConfig.mk and recovery.fstab
+# Enable FBE in both locations:
+# BoardConfig.mk:
++ TW_INCLUDE_CRYPTO_FBE := true
+# recovery.fstab:
++ /data ext4 /dev/block/by-name/userdata flags=fileencryption=aes-256-xts:aes-256-cts:v2`);
   }
 
   // === Android Version-Specific Checks ===
@@ -3293,29 +3398,38 @@ function runValidation(){
     for(const flag of (verFlags.required || [])){
       const hasFlag = bc[flag] === 'true';
       chk(`ver_flag_${flag.toLowerCase()}`,'Version Flags',flag,hasFlag,8,
-        `${flag} := true`,`MISSING: ${flag} := true — Required for Android ${ver}`,'high');
+        `${flag} := true`,`MISSING: ${flag} := true — Required for Android ${ver}`,
+        `FILE: BoardConfig.mk
+# Android ${ver} requires:
++ ${flag} := true`);
     }
     
     // Check removed flags (should NOT be present)
     for(const flag of (verFlags.removed || [])){
       const hasFlag = bc[flag] === 'true';
       if(hasFlag){
-        chk(`ver_flag_removed_${flag.toLowerCase()}`,'Version Flags',`${flag} (Removed)`,false,6,
-          '','SHOULD BE REMOVED: ${flag} is deprecated for Android ${ver}','high');
+        chk(`ver_flag_removed_${flag.toLowerCase()}`,'Version Flags',`${flag} (Deprecated)`,false,6,
+          '',`SHOULD REMOVE: ${flag} is deprecated for Android ${ver}`,
+          `FILE: BoardConfig.mk
+# Remove deprecated flag for Android ${ver}:
+- ${flag} := true`);
       }
     }
     
     // === Version-Specific Service Class Checks ===
-    // TEE class check - skip if not required (null) for this Android version
     if(teeSvcs.length > 0 && verServiceClass.tee){
       const teeClassOk = teeSvcs.some(s => s.className === verServiceClass.tee);
       chk('ver_tee_class','Version Services',`TEE class '${verServiceClass.tee}'`,teeClassOk,5,
         `TEE daemon uses class ${verServiceClass.tee}`,
-        `TEE daemon should use class ${verServiceClass.tee} for Android ${ver}`);
+        `TEE daemon should use class ${verServiceClass.tee} for Android ${ver}`,
+        `FILE: init.recovery.*.rc
+# Android ${ver} TEE class:
+  service tee_daemon /vendor/bin/...
+-     class wrong_class
++     class ${verServiceClass.tee}`);
     }
     
     if(kmSvcs.length > 0){
-      // For A11, accept both 'hal' and 'early_hal' as valid keymaster classes
       const validKmClasses = [verServiceClass.keymaster];
       if(verServiceClass.keymasterAlt){
         validKmClasses.push(verServiceClass.keymasterAlt);
@@ -3323,15 +3437,24 @@ function runValidation(){
       const kmClassOk = kmSvcs.some(s => validKmClasses.includes(s.className));
       chk('ver_km_class','Version Services',`Keymaster class '${verServiceClass.keymaster}'`,kmClassOk,7,
         `Keymaster uses class ${verServiceClass.keymaster}${verServiceClass.keymasterAlt ? ` or ${verServiceClass.keymasterAlt}` : ''}`,
-        `Keymaster should use class ${verServiceClass.keymaster}${verServiceClass.keymasterAlt ? ` or ${verServiceClass.keymasterAlt}` : ''} for Android ${ver}`);
+        `Keymaster should use class ${verServiceClass.keymaster}${verServiceClass.keymasterAlt ? ` or ${verServiceClass.keymasterAlt}` : ''} for Android ${ver}`,
+        `FILE: init.recovery.*.rc
+# Android ${ver} keymaster class:
+  service keymaster /vendor/bin/...
+-     class wrong_class
++     class ${verServiceClass.keymaster}`);
     }
     
-    // Gatekeeper class check - skip if not required (null) for this Android version
     if(gkSvcs.length > 0 && verServiceClass.gatekeeper){
       const gkClassOk = gkSvcs.some(s => s.className === verServiceClass.gatekeeper);
       chk('ver_gk_class','Version Services',`Gatekeeper class '${verServiceClass.gatekeeper}'`,gkClassOk,4,
         `Gatekeeper uses class ${verServiceClass.gatekeeper}`,
-        `Gatekeeper should use class ${verServiceClass.gatekeeper} for Android ${ver}`);
+        `Gatekeeper should use class ${verServiceClass.gatekeeper} for Android ${ver}`,
+        `FILE: init.recovery.*.rc
+# Android ${ver} gatekeeper class:
+  service gatekeeper /vendor/bin/...
+-     class wrong_class
++     class ${verServiceClass.gatekeeper}`);
     }
     
     // === Version-Specific Library Checks ===
@@ -3345,7 +3468,12 @@ function runValidation(){
     if(missingVerLibs.length > 0){
       chk('ver_libraries','Version Libraries',`Android ${ver} Libraries`,false,10,
         'All version-specific libraries configured',
-        `MISSING for Android ${ver}: ${missingVerLibs.join(', ')}`,'high');
+        `Missing for Android ${ver}: ${missingVerLibs.join(', ')}`,
+        `FILE: device.mk
+# Android ${ver} recovery libraries:
++ TARGET_RECOVERY_DEVICE_MODULES += ${missingVerLibs.join(' ')}
++ RECOVERY_LIBRARY_SOURCE_FILES += \\
+${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(' \\\n')}`);
     }
     
     // === Version-Specific Package Checks ===
@@ -3356,13 +3484,13 @@ function runValidation(){
       });
       chk('ver_packages','Version Packages',`Android ${ver} Packages`,missingPkgs.length===0,8,
         `All ${verPkgs.length} packages configured`,
-        `MISSING for Android ${ver}: ${missingPkgs.join(', ')}`,'high');
+        `Missing for Android ${ver}: ${missingPkgs.join(', ')}`,
+        `FILE: device.mk
+# Android ${ver} required packages:
++ PRODUCT_PACKAGES += ${missingPkgs.join(' ')}`);
     }
     
     // === Version-Specific Keymaster Version Check ===
-    // A11: 4.0 is fine
-    // A12: 4.1 recommended (warning if missing)
-    // A13+: 4.1 REQUIRED (error if missing)
     if(ver >= 12 && kmSvcs.length > 0){
       const hasKm41 = kmSvcs.some(s => 
         s.binary.includes('keymaster@4.1') || 
@@ -3371,15 +3499,23 @@ function runValidation(){
       );
       
       if(ver >= 13){
-        // A13+: Keymaster 4.1 REQUIRED
         chk('ver_km_41','Version Keymaster','Keymaster 4.1 Support',hasKm41,8,
           'Keymaster 4.1 service found',
-          'Android 13+ requires Keymaster 4.1 for proper decryption','critical');
+          'Android 13+ requires Keymaster 4.1 for proper decryption',
+          `FILE: device.mk or init.recovery.*.rc
+# Android ${ver} requires Keymaster 4.1:
++ PRODUCT_PACKAGES += android.hardware.keymaster@4.1-service
+# Or use keymaster 4.1 binary in init file:
+  service keymaster /vendor/bin/hw/android.hardware.keymaster@4.1-service
++     interface android.hardware.keymaster@4.0::IKeymasterDevice default
++     interface android.hardware.keymaster@4.1::IKeymasterDevice default`);
       } else if(ver === 12){
-        // A12: Keymaster 4.1 recommended
         chk('ver_km_41','Version Keymaster','Keymaster 4.1 Support',hasKm41,4,
           'Keymaster 4.1 service found (recommended)',
-          'Android 12 recommends Keymaster 4.1 for full compatibility');
+          'Android 12 recommends Keymaster 4.1 for full compatibility',
+          `FILE: device.mk
+# Android 12 recommends Keymaster 4.1:
++ PRODUCT_PACKAGES += android.hardware.keymaster@4.1-service`);
       }
     }
     
@@ -3390,7 +3526,11 @@ function runValidation(){
       );
       chk('ver_fscrypt_v2','Version Crypto','fscrypt v2+ Policy',fscryptV2,6,
         'fscrypt v2+ encryption policy detected',
-        'Android 13+ requires fscrypt v2+ policy','high');
+        'Android 13+ requires fscrypt v2+ policy',
+        `FILE: recovery.fstab
+# Android 13+ requires fscrypt v2 or higher:
+- /data ext4 /dev/block/by-name/userdata flags=fileencryption=aes-256-xts:aes-256-cts:v1
++ /data ext4 /dev/block/by-name/userdata flags=fileencryption=aes-256-xts:aes-256-cts:v2`);
     }
     
     // === wrappedkey Check (Android 12+ ONLY) ===
@@ -3399,12 +3539,14 @@ function runValidation(){
                            (bc['BOARD_KERNEL_CMDLINE'] || '').includes('inlinecrypt');
       chk('ver_wrappedkey','Version Crypto','wrappedkey + inlinecrypt',inlineSupport,7,
         'inlinecrypt kernel support detected',
-        'wrappedkey_v0 requires inlinecrypt kernel support for Android 12+','high');
+        'wrappedkey_v0 requires inlinecrypt kernel support for Android 12+',
+        `FILE: BoardConfig.mk
+# Add inlinecrypt support for wrappedkey:
++ BOARD_KERNEL_CMDLINE += inlinecrypt`);
     }
   }
 
   // === A15+ Specific Checks ===
-  // Only run if Android version is 15+
   const isActuallyA15Plus = S.androidVersion && S.androidVersion.version >= 15;
   if(isActuallyA15Plus){
     chk('a15_compat','A15+','Platform Version (A15+ Compat)',true,5,
@@ -3416,31 +3558,54 @@ function runValidation(){
     
     chk('a15_security_pkgs','A15+','Security HAL Packages',missingPkgs.length===0,12,
       `All present: ${securityPkgs.join(', ')}`,
-      `MISSING: ${missingPkgs.join(', ')} — Required for A15+ decryption`,'critical');
+      `Missing: ${missingPkgs.join(', ')} — Required for A15+ decryption`,
+      `FILE: device.mk
+# A15+ requires these security packages:
++ PRODUCT_PACKAGES += \\
++     android.hardware.security.keymint \\
++     android.hardware.security.secureclock \\
++     android.hardware.security.sharedsecret`);
     
     // Check metadata decrypt flag (should be removed for A15+)
     chk('a15_metadata','A15+','Metadata Decrypt (Removed)',!bc['TW_INCLUDE_FBE_METADATA_DECRYPT'],5,
-      'Correctly removed for A15+','TW_INCLUDE_FBE_METADATA_DECRYPT should be removed for A15+');
+      'Correctly removed for A15+','TW_INCLUDE_FBE_METADATA_DECRYPT should be removed for A15+',
+      `FILE: BoardConfig.mk
+# Remove for A15+:
+- TW_INCLUDE_FBE_METADATA_DECRYPT := true`);
     
     // Check keymaster uses early_hal class
     const kmEarlyHal = kmSvcs.some(s => s.className === 'early_hal');
     chk('a15_km_class','A15+','Keymaster class early_hal',kmEarlyHal||kmSvcs.length===0,8,
       kmSvcs.length>0?'Keymaster uses early_hal class':'N/A',
-      'Keymaster should use class early_hal for A15+');
+      'Keymaster should use class early_hal for A15+',
+      `FILE: init.recovery.*.rc
+# A15+ keymaster class:
+  service keymaster /vendor/bin/...
+-     class hal
++     class early_hal`);
     
     // Check keymaster has interface declarations
     const kmHasInterfaces = kmSvcs.some(s => s.interfaceDecls.length > 0);
     chk('a15_km_interfaces','A15+','Keymaster Interface Declarations',kmHasInterfaces||kmSvcs.length===0,6,
       kmSvcs.length>0?`Found: ${kmSvcs.find(s=>s.interfaceDecls.length>0)?.interfaceDecls.length||0} interfaces`:'N/A',
-      'Add interface declarations for proper HAL registration');
+      'Add interface declarations for proper HAL registration',
+      `FILE: init.recovery.*.rc
+# Add interface declarations:
+  service keymaster /vendor/bin/hw/android.hardware.keymaster@4.1-service
++     interface android.hardware.keymaster@4.0::IKeymasterDevice default
++     interface android.hardware.keymaster@4.1::IKeymasterDevice default`);
     
     // Check keymaster user (should be nobody for security)
     const kmSecureUser = kmSvcs.some(s => s.user === 'nobody');
     chk('a15_km_user','A15+','Keymaster User Security',kmSecureUser||kmSvcs.length===0,4,
       kmSvcs.length>0?'user nobody (secure)':'N/A',
-      'Consider using user nobody instead of root');
+      'Consider using user nobody instead of root',
+      `FILE: init.recovery.*.rc
+# Use nobody user for security:
+  service keymaster /vendor/bin/...
+-     user root
++     user nobody`);
   }else{
-    // Not A15+ compat mode - check platform version is reasonable
     const pv = bc['PLATFORM_VERSION'] || '';
     if(pv && A15_COMPAT_VERSION.test(pv)){
       chk('a15_platform_version','BoardConfig','Platform Version',true,5,pv,'');
@@ -3451,7 +3616,12 @@ function runValidation(){
   if(S.recoveryLibs && S.recoveryLibs.missing && S.recoveryLibs.missing.length > 0){
     chk('recovery_libs','Libraries','Keymaster Recovery Libraries',false,10,
       'All libraries configured',
-      `Missing: ${S.recoveryLibs.missing.join(', ')} — Add to TARGET_RECOVERY_DEVICE_MODULES`,'high');
+      `Missing: ${S.recoveryLibs.missing.join(', ')}`,
+      `FILE: device.mk
+# Add missing recovery libraries:
++ TARGET_RECOVERY_DEVICE_MODULES += ${S.recoveryLibs.missing.join(' ')}
++ RECOVERY_LIBRARY_SOURCE_FILES += \\
+${S.recoveryLibs.missing.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(' \\\n')}`);
   }else if(S.recoveryLibs && S.recoveryLibs.modules && S.recoveryLibs.modules.length > 0){
     chk('recovery_libs','Libraries','Keymaster Recovery Libraries',true,5,
       `${S.recoveryLibs.modules.length} modules configured`,'');
@@ -3463,73 +3633,104 @@ function runValidation(){
     chk('service_triggers','Services','Service Startup Triggers',hasTrigger,8,
       S.serviceTriggers.hwservicemanager?'hwservicemanager.ready trigger found':
       S.serviceTriggers.vendorListener?'vendor.sys.listener trigger found':'Trigger configured',
-      'No service startup triggers found - services may not start automatically');
+      'No service startup triggers found - services may not start automatically',
+      `FILE: init.recovery.*.rc
+# Add trigger to start crypto services:
++ on property:hwservicemanager.ready=true
++     start tee_daemon
++     start keymaster
++     start gatekeeper`);
     
-    // Check for init.tee.rc pattern (Trustonic best practice)
     if(S.tee.type === 'trustonic'){
       chk('init_tee_rc','Services','init.tee.rc Pattern',S.serviceTriggers.initTeeRc,4,
         'init.tee.rc file found (recommended pattern)',
-        'Consider splitting TEE config into init.tee.rc');
+        'Consider splitting TEE config into init.tee.rc',
+        `FILE: init.tee.rc
+# Create separate init.tee.rc for Trustonic TEE configuration
+# Include from main init file:
++ import /init.tee.rc`);
     }
   }
   
   // === Trustonic drbin Checks ===
-  // NOTE: drbin files are typically loaded from device's /vendor/app/mcRegistry/,
-  // NOT from the recovery tree. Skip tree checks - only check if they're referenced.
   if(S.tee.type === 'trustonic' && S.drbinFiles && S.drbinFiles.length > 0){
-    // Check that critical drbins are at least referenced in mcDriverDaemon args
     const criticalDrbins = S.drbinFiles.filter(d => d.critical);
     const referencedCritical = criticalDrbins.filter(d => d.referenced);
     
     chk('drbin_critical','Trustonic','Critical drbin Files',referencedCritical.length > 0,8,
-      `${referencedCritical.length} critical drbins referenced in mcDriverDaemon args`,
-      'No critical drbins referenced - add to mcDriverDaemon -r arguments');
-    
-    // REMOVED: "drbins referenced but not in tree" check
-    // drbin files are loaded from device's /vendor/app/mcRegistry/, not recovery tree
+      `${referencedCritical.length} critical drbins referenced`,
+      'No critical drbins referenced - add to TEE daemon arguments',
+      `FILE: init.recovery.*.rc
+# Add drbin references to TEE daemon:
+  service tee_daemon /vendor/bin/mcDriverDaemon --sfs-reformat --P1 /mnt/vendor/persist/mcRegistry \\
++     -r /vendor/app/mcRegistry/06090000000000000000000000000000.drbin \\
++     -r /vendor/app/mcRegistry/020f0000000000000000000000000000.drbin \\
+      ...
+# These drbin files should be in device's /vendor/app/mcRegistry/`);
   }
   
   // === TW_FORCE_KEYMASTER_VER Check ===
   if(bc['TW_FORCE_KEYMASTER_VER'] === 'true'){
     chk('force_km_ver','BoardConfig','TW_FORCE_KEYMASTER_VER',true,3,
-      'Enabled - forces keymaster version compatibility','N/A');
+      'Enabled - forces keymaster version compatibility','');
   }
 
   // === VINTF Manifest Checks ===
   if(S.xmlManifest && S.xmlManifest.services.length > 0){
     const manifestServices = S.xmlManifest.services;
     
-    // Check for keymaster in manifest
     const hasKmManifest = manifestServices.some(s => 
       s.includes('keymaster') || s.includes('Keymaster'));
     chk('vintf_keymaster','VINTF','Keymaster in Manifest',hasKmManifest,6,
-      'Keymaster HAL declared in manifest','Keymaster not found in VINTF manifest');
+      'Keymaster HAL declared in manifest','Keymaster not found in VINTF manifest',
+      `FILE: manifest.xml or vintf manifest
+# Add keymaster HAL declaration:
++ <hal format="hidl">
++     <name>android.hardware.keymaster</name>
++     <transport>hwbinder</transport>
++     <version>4.1</version>
++     <interface>
++         <name>IKeymasterDevice</name>
++         <instance>default</instance>
++     </interface>
++ </hal>`);
     
-    // Check for gatekeeper in manifest
     const hasGkManifest = manifestServices.some(s => 
       s.includes('gatekeeper') || s.includes('Gatekeeper'));
     chk('vintf_gatekeeper','VINTF','Gatekeeper in Manifest',hasGkManifest,4,
-      'Gatekeeper HAL declared in manifest','Gatekeeper not found in VINTF manifest');
+      'Gatekeeper HAL declared in manifest','Gatekeeper not found in VINTF manifest',
+      `FILE: manifest.xml or vintf manifest
+# Add gatekeeper HAL declaration:
++ <hal format="hidl">
++     <name>android.hardware.gatekeeper</name>
++     <transport>hwbinder</transport>
++     <version>1.0</version>
++     <interface>
++         <name>IGatekeeper</name>
++         <instance>default</instance>
++     </interface>
++ </hal>`);
     
-    // Version-specific VINTF checks
     if(S.androidVersion && S.androidVersion.version){
       const ver = S.androidVersion.version;
       const verVintf = VERSION_VINTF_MANIFESTS[ver] || { required: [], optional: [] };
       
-      // Check required VINTF declarations
       for(const req of (verVintf.required || [])){
         const hasReq = manifestServices.some(s => s.includes(req));
         chk(`vintf_${req.replace(/[^a-z0-9]/gi,'_')}`,'VINTF',`${req}`,hasReq,7,
           `${req} declared in manifest`,
-          `MISSING: ${req} required for Android ${ver} VINTF`,'high');
+          `Missing: ${req} required for Android ${ver} VINTF`,
+          `FILE: manifest.xml
+# Android ${ver} requires ${req} in VINTF manifest:
++ <hal format="hidl">
++     <name>${req}</name>
++     <transport>hwbinder</transport>
++     <interface>
++         <name>I${req.split('.').pop()}</name>
++         <instance>default</instance>
++     </interface>
++ </hal>`);
       }
-      
-      // Android 15+ specific VINTF checks
-      // NOTE: A15+ keymint/secureclock/sharedsecret are typically included via PRODUCT_PACKAGES,
-      // not in recovery tree VINTF manifest. Skip these checks - a15_security_pkgs handles this.
-      // if(ver >= 15){
-      //   ... removed - these are false positives for recovery trees ...
-      // }
     }
   }
   
@@ -5844,7 +6045,6 @@ function renderIssues(){
       return aIdx - bIdx;
     });
 
-    // Group categories by type
     const coreCategories = cats.filter(c => !versionCategories.includes(c));
     const versionSpecificCategories = cats.filter(c => versionCategories.includes(c));
     
@@ -5876,9 +6076,25 @@ function renderIssues(){
         </div>`;
 
       for(const c of cc){
-        h+=`<div class="body-small" style="margin:6px 0;color:var(--md-on-surface-variant);padding-left:20px">
-          <span style="color:${c.ok?'var(--md-success)':'var(--md-error)'}">
-          ${c.ok?'✓':'✗'}</span> ${esc(c.label)} — <span style="color:${c.ok?'var(--md-outline)':'var(--md-error)'};">${esc(c.msg)}</span></div>`;
+        const severityClass = c.severity === 'critical' ? 'chip-error' : c.severity === 'high' ? 'chip-warning' : '';
+        const severityBadge = !c.ok && severityClass ? `<span class="md-chip ${severityClass}" style="font-size:9px;margin-left:6px">${c.severity}</span>` : '';
+        
+        h+=`<div style="margin:8px 0;padding:10px 12px;border-radius:12px;background:${c.ok?'var(--md-surface-container-highest)':'color-mix(in srgb,var(--md-error)8%,var(--md-surface-container-highest))'};border-left:3px solid ${c.ok?'var(--md-success)':'var(--md-error)'}">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span class="mi" style="font-size:16px;color:${c.ok?'var(--md-success)':'var(--md-error)'}">${c.ok?'check_circle':'cancel'}</span>
+            <span class="label-small" style="color:${c.ok?'var(--md-on-surface)':'var(--md-error)'}">${esc(c.label)}</span>
+            ${severityBadge}
+          </div>
+          <div class="body-small" style="color:var(--md-on-surface-variant);margin-top:4px;padding-left:24px">${esc(c.msg)}</div>`;
+        
+        // Show fix if check failed and fix is available
+        if(!c.ok && c.fix){
+          h+=`<div class="diff-block" style="margin-top:10px;margin-left:24px">
+            <div class="diff-header"><span class="mi" style="font-size:14px;vertical-align:middle">lightbulb</span> Fix</div>
+            ${renderGitHubDiff(c.fix)}
+          </div>`;
+        }
+        h+=`</div>`;
       }
       h+=`</div>`;
     }
@@ -5906,9 +6122,24 @@ function renderIssues(){
           </div>`;
 
         for(const c of cc){
-          h+=`<div class="body-small" style="margin:6px 0;color:var(--md-on-surface-variant);padding-left:20px">
-            <span style="color:${c.ok?'var(--md-success)':'var(--md-error)'}">
-            ${c.ok?'✓':'✗'}</span> ${esc(c.label)} — <span style="color:${c.ok?'var(--md-outline)':'var(--md-error)'};">${esc(c.msg)}</span></div>`;
+          const severityClass = c.severity === 'critical' ? 'chip-error' : c.severity === 'high' ? 'chip-warning' : '';
+          const severityBadge = !c.ok && severityClass ? `<span class="md-chip ${severityClass}" style="font-size:9px;margin-left:6px">${c.severity}</span>` : '';
+          
+          h+=`<div style="margin:8px 0;padding:10px 12px;border-radius:12px;background:${c.ok?'var(--md-surface-container-highest)':'color-mix(in srgb,var(--md-error)8%,var(--md-surface-container-highest))'};border-left:3px solid ${c.ok?'var(--md-success)':'var(--md-error)'}">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span class="mi" style="font-size:16px;color:${c.ok?'var(--md-success)':'var(--md-error)'}">${c.ok?'check_circle':'cancel'}</span>
+              <span class="label-small" style="color:${c.ok?'var(--md-on-surface)':'var(--md-error)'}">${esc(c.label)}</span>
+              ${severityBadge}
+            </div>
+            <div class="body-small" style="color:var(--md-on-surface-variant);margin-top:4px;padding-left:24px">${esc(c.msg)}</div>`;
+          
+          if(!c.ok && c.fix){
+            h+=`<div class="diff-block" style="margin-top:10px;margin-left:24px">
+              <div class="diff-header"><span class="mi" style="font-size:14px;vertical-align:middle">lightbulb</span> Fix</div>
+              ${renderGitHubDiff(c.fix)}
+            </div>`;
+          }
+          h+=`</div>`;
         }
         h+=`</div>`;
       }
@@ -5916,74 +6147,7 @@ function renderIssues(){
     }
   }
   
-  // === ISSUES SECTION (from S.rootCauses) ===
-  h+=`<div class="section-title" style="margin-top:24px;"><span class="mi">report</span> Found Issues</div>`;
-
-  if(S.rootCauses.length===0){
-    h+=`<div class="md-card" style="text-align:center;padding:40px;"><span class="mi" style="font-size:48px;color:var(--md-success)">check_circle</span><div class="title-medium" style="margin-top:12px;color:var(--md-success)">No issues found!</div></div>`;
-    document.getElementById('tab-issues').innerHTML=h;
-    return;
-  }
-
-  // Group issues by Android version
-  const generalIssues = [];
-  const versionIssues = {};
-  
-  for(const issue of S.rootCauses){
-    if(issue.androidVersion){
-      const ver = issue.androidVersion;
-      if(!versionIssues[ver]) versionIssues[ver] = [];
-      versionIssues[ver].push(issue);
-    } else {
-      generalIssues.push(issue);
-    }
-  }
-  
-  // Version badge colors
-  const verColors = {
-    11: '#4CAF50', 12: '#64B5F6', '12L': '#4285F4', 13: '#00BCD4',
-    14: '#FF5722', 15: '#9C27B0', 16: '#00BFA5'
-  };
-  
-  // Render general issues first
-  if(generalIssues.length > 0){
-    h+=`<div class="validation-category" style="background:var(--md-surface-container-high);margin-bottom:16px;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <span class="mi" style="color:var(--md-primary)">error_outline</span>
-        <span class="label-large" style="color:var(--md-on-surface)">General Issues</span>
-        <span class="md-chip" style="font-size:11px;background:var(--md-error)20;color:var(--md-error)">${generalIssues.length}</span>
-      </div>`;
-    
-    for(const rc of generalIssues){
-      h+=renderIssueCard(rc);
-    }
-    h+=`</div>`;
-  }
-  
-  // Render version-specific issues grouped by Android version
-  const sortedVersions = Object.keys(versionIssues).map(Number).sort((a,b)=>b-a);
-  
-  for(const ver of sortedVersions){
-    const issues = versionIssues[ver];
-    const verColor = verColors[ver] || 'var(--md-primary)';
-    const verInfo = ANDROID_VERSIONS[ver] || { name: `Android ${ver}` };
-    
-    h+=`<div class="validation-category" style="margin-bottom:16px;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-        <span class="mi" style="color:${verColor}">android</span>
-        <span class="label-large" style="color:${verColor}">${verInfo.name}</span>
-        <span class="md-chip" style="font-size:11px;background:${verColor}20;color:${verColor}">${issues.length} issue${issues.length>1?'s':''}</span>
-        <span class="md-chip chip-error" style="font-size:10px;">Version-Specific</span>
-      </div>`;
-    
-    for(const rc of issues){
-      h+=renderIssueCard(rc);
-    }
-    h+=`</div>`;
-  }
-
   document.getElementById('tab-issues').innerHTML=h;
-
 }
 
 function renderIssueCard(rc){
