@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.10 — MTK Decrypt Inspector</title>
+<title>CryptX v3.11 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.10</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.11</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -3619,69 +3619,104 @@ function computeVerdict(){
 // =================================================================
 
 // Helper: Get actual file content snippet for a given file pattern
-function getActualFileSnippet(filePattern, maxLines = 50){
+function getActualFileSnippet(filePattern, maxLines = 50, serviceName = null){
   // Find matching file in tree with priority-based matching
   const pattern = filePattern.toLowerCase();
   let matchedFile = null;
 
-  // Extract key identifiers from pattern (e.g., "BoardConfig.mk", "device.mk", "init.recovery")
-  const patternBasename = pattern.split('/').pop(); // Get filename part
-  const patternName = patternBasename.replace(/\.[^.]+$/, ''); // Remove extension
+  // Extract key identifiers from pattern
+  const patternBasename = pattern.split('/').pop();
+  const isInitRcPattern = pattern.includes('init') && pattern.includes('.rc');
+  const isBoardConfigPattern = pattern.includes('boardconfig');
+  const isDeviceMkPattern = pattern.includes('device.mk') || (pattern.includes('device') && pattern.includes('.mk'));
+  const isFstabPattern = pattern.includes('fstab');
 
-  // Priority 1: Exact filename match
-  const allFiles = [
-    ...(S.files.boardconfig || []),
-    ...(S.files.mk || []),
-    ...(S.files.initrc || []),
-    ...(S.files.fstab || []),
-    ...(S.files.xml || []),
-    ...(S.files.prop || [])
-  ];
-
-  // First pass: exact filename match
-  for(const fp of allFiles){
-    const fileName = fp.split('/').pop().toLowerCase();
-    if(fileName === patternBasename || fileName === pattern){
-      matchedFile = fp;
-      break;
-    }
-  }
-
-  // Second pass: filename contains pattern (for patterns like "device.mk")
-  if(!matchedFile){
-    for(const fp of allFiles){
-      const fileName = fp.split('/').pop().toLowerCase();
-      if(fileName.includes(patternBasename) || patternBasename.includes(fileName.replace(/\.[^.]+$/, ''))){
-        matchedFile = fp;
-        break;
+  // For init.rc patterns with service name, search for the service in actual .rc files
+  if(isInitRcPattern && serviceName){
+    const allRcFiles = S.files.initrc || [];
+    for(const fp of allRcFiles){
+      const content = S.fileContents[fp];
+      if(content){
+        // Check if this file contains the service
+        const serviceRegex = new RegExp(`service\\s+${serviceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s`, 'i');
+        if(serviceRegex.test(content)){
+          matchedFile = fp;
+          break;
+        }
       }
     }
   }
 
-  // Third pass: path-based match for init.recovery.*.rc patterns
-  if(!matchedFile && pattern.includes('init.recovery')){
-    for(const fp of (S.files.initrc || [])){
+  // For init.rc patterns without specific service, find any recovery init file
+  if(!matchedFile && isInitRcPattern){
+    const allRcFiles = S.files.initrc || [];
+    // Priority: init.recovery.*.rc > init.tee.rc > any .rc file
+    for(const fp of allRcFiles){
       const fn = fp.toLowerCase();
-      if(fn.includes('init.recovery') || fn.includes('init.tee')){
+      if(fn.includes('init.recovery')){
         matchedFile = fp;
         break;
       }
     }
+    if(!matchedFile){
+      for(const fp of allRcFiles){
+        const fn = fp.toLowerCase();
+        if(fn.includes('init.tee')){
+          matchedFile = fp;
+          break;
+        }
+      }
+    }
+    if(!matchedFile && allRcFiles.length > 0){
+      matchedFile = allRcFiles[0];
+    }
   }
 
-  // Fourth pass: BoardConfig special handling
-  if(!matchedFile && pattern.includes('boardconfig')){
+  // BoardConfig special handling
+  if(!matchedFile && isBoardConfigPattern){
     const bcFiles = S.files.boardconfig || [];
     if(bcFiles.length > 0){
-      matchedFile = bcFiles[0]; // Use first BoardConfig file
+      matchedFile = bcFiles[0];
     }
   }
 
-  // Fifth pass: device.mk handling
-  if(!matchedFile && (pattern.includes('device.mk') || pattern.includes('device'))){
-    for(const fp of (S.files.mk || [])){
+  // device.mk handling
+  if(!matchedFile && isDeviceMkPattern){
+    const mkFiles = S.files.mk || [];
+    for(const fp of mkFiles){
       const fn = fp.split('/').pop().toLowerCase();
-      if(fn === 'device.mk' || fn.includes('device')){
+      if(fn === 'device.mk'){
+        matchedFile = fp;
+        break;
+      }
+    }
+    // Fallback to any .mk file
+    if(!matchedFile && mkFiles.length > 0){
+      matchedFile = mkFiles[0];
+    }
+  }
+
+  // Fstab handling
+  if(!matchedFile && isFstabPattern){
+    const fstabFiles = S.files.fstab || [];
+    if(fstabFiles.length > 0){
+      matchedFile = fstabFiles[0];
+    }
+  }
+
+  // Last resort: any file matching pattern
+  if(!matchedFile){
+    const allFiles = [
+      ...(S.files.boardconfig || []),
+      ...(S.files.mk || []),
+      ...(S.files.initrc || []),
+      ...(S.files.fstab || []),
+      ...(S.files.xml || []),
+      ...(S.files.prop || [])
+    ];
+    for(const fp of allFiles){
+      const fileName = fp.split('/').pop().toLowerCase();
+      if(fileName === patternBasename || fileName.includes(patternBasename.replace(/\*/g, ''))){
         matchedFile = fp;
         break;
       }
@@ -3690,7 +3725,7 @@ function getActualFileSnippet(filePattern, maxLines = 50){
 
   if(matchedFile && S.fileContents[matchedFile]){
     const content = S.fileContents[matchedFile];
-    const lines = content.split('\n').slice(0, maxLines);
+    const lines = content.split('\n');
     return {
       path: matchedFile,
       content: content,
@@ -5949,8 +5984,8 @@ function validateAndRenderFix(rc){
   const lines = rc.fix.split('\n');
   let targetFile = null;
   let additions = [];
+  let removals = [];
   let context = [];
-  let inAddSection = false;
 
   for(const line of lines){
     // Detect file pattern
@@ -5963,17 +5998,49 @@ function validateAndRenderFix(rc){
     // Track additions
     if(line.startsWith('+') && !line.startsWith('++')){
       additions.push(line.substring(1).trim());
-      inAddSection = true;
-    }else if(line.startsWith('#') || line.startsWith('@@') || (!line.startsWith('+') && !line.startsWith('-'))){
-      if(line.trim() && !line.startsWith('FILE')){
-        context.push(line.replace(/^#\s*/, '').trim());
+    }
+    // Track removals
+    else if(line.startsWith('-') && !line.startsWith('--')){
+      removals.push(line.substring(1).trim());
+    }
+    // Track context
+    else if(line.trim() && !line.match(/^(FILE|file|File):/)){
+      context.push(line.replace(/^#\s*/, '').trim());
+    }
+  }
+
+  // Extract service name from evidence if available
+  let serviceName = null;
+  if(rc.evidence && rc.evidence.length > 0){
+    for(const e of rc.evidence){
+      // Match "service_name: class xxx" pattern
+      const svcMatch = e.match(/^([^:\s]+):\s*class/);
+      if(svcMatch){
+        serviceName = svcMatch[1];
+        break;
+      }
+      // Also match "service_name:" pattern for other issues
+      const svcMatch2 = e.match(/^([^:\s]+):/);
+      if(svcMatch2 && !serviceName){
+        serviceName = svcMatch2[1];
+      }
+    }
+  }
+
+  // Also look for service names in the fix text itself
+  if(!serviceName){
+    for(const line of lines){
+      const svcMatch = line.match(/service\s+(\S+)\s+\//);
+      if(svcMatch){
+        serviceName = svcMatch[1];
+        break;
       }
     }
   }
 
   // If we have a target file, check if additions already exist
   if(targetFile && additions.length > 0){
-    const snippet = getActualFileSnippet(targetFile);
+    const snippet = getActualFileSnippet(targetFile, 50, serviceName);
     if(snippet.exists && snippet.content){
       // Check if all additions already exist in the file
       const allPresent = additions.every(add => {
@@ -5988,7 +6055,7 @@ function validateAndRenderFix(rc){
 
       // Show actual file content with diff
       return {
-        html: renderSmartDiff(snippet, additions, context, targetFile),
+        html: renderSmartDiff(snippet, additions, removals, context, targetFile, serviceName),
         noEditNeeded: false
       };
     }
@@ -5999,7 +6066,7 @@ function validateAndRenderFix(rc){
 }
 
 // Render diff with actual file content context
-function renderSmartDiff(snippet, additions, context, targetFile){
+function renderSmartDiff(snippet, additions, removals, context, targetFile, serviceName){
   let html = '<div class="diff-body">';
 
   // Show actual file header
@@ -6009,16 +6076,75 @@ function renderSmartDiff(snippet, additions, context, targetFile){
     <span class="md-chip" style="font-size:10px;background:var(--md-primary)20;color:var(--md-primary)">Actual file</span>
   </div>`;
 
-  // Show relevant existing content (last few lines before edit point)
-  const existingLines = (snippet.lines || []).slice(-10);
-  let lineNum = Math.max(1, (snippet.lines || []).length - 10);
-  for(const line of existingLines){
-    if(line !== undefined && line !== null){
-      html += `<div class="diff-line diff-context">
-        <span class="diff-line-num">${lineNum}</span>
-        <span>${esc(line)}</span>
-      </div>`;
-      lineNum++;
+  // If we have a service name, find and show lines around that service
+  if(serviceName && snippet.lines){
+    let serviceLineIdx = -1;
+    const searchPattern = new RegExp(`service\\s+${serviceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s`, 'i');
+    
+    for(let i = 0; i < snippet.lines.length; i++){
+      if(searchPattern.test(snippet.lines[i])){
+        serviceLineIdx = i;
+        break;
+      }
+    }
+
+    if(serviceLineIdx >= 0){
+      // Show lines around the service definition
+      const startLine = Math.max(0, serviceLineIdx);
+      const endLine = Math.min(snippet.lines.length, serviceLineIdx + 20);
+      
+      for(let i = startLine; i < endLine; i++){
+        const line = snippet.lines[i];
+        const lineNum = i + 1;
+        
+        // Stop at next service definition
+        if(i > serviceLineIdx && /^\s*service\s+\S+\s+\//.test(line)){
+          break;
+        }
+        
+        // Check if line is the class line (for removal)
+        const isClassLine = line && /^\s*class\s+/.test(line);
+        
+        if(isClassLine){
+          // Show as removal (red)
+          html += `<div class="diff-line diff-remove">
+            <span class="diff-line-num">${lineNum}</span>
+            <span><span class="diff-remove-text">-</span>${esc(line)}</span>
+          </div>`;
+        } else {
+          // Show as context (gray)
+          html += `<div class="diff-line diff-context">
+            <span class="diff-line-num">${lineNum}</span>
+            <span>${esc(line)}</span>
+          </div>`;
+        }
+      }
+    } else {
+      // Service not found, show last few lines
+      const existingLines = snippet.lines.slice(-10);
+      let lineNum = Math.max(1, snippet.lines.length - 10);
+      for(const line of existingLines){
+        if(line !== undefined && line !== null){
+          html += `<div class="diff-line diff-context">
+            <span class="diff-line-num">${lineNum}</span>
+            <span>${esc(line)}</span>
+          </div>`;
+          lineNum++;
+        }
+      }
+    }
+  } else {
+    // No service name, show last few lines of file
+    const existingLines = (snippet.lines || []).slice(-10);
+    let lineNum = Math.max(1, (snippet.lines || []).length - 10);
+    for(const line of existingLines){
+      if(line !== undefined && line !== null){
+        html += `<div class="diff-line diff-context">
+          <span class="diff-line-num">${lineNum}</span>
+          <span>${esc(line)}</span>
+        </div>`;
+        lineNum++;
+      }
     }
   }
 
