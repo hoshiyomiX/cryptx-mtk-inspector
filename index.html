@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.7 — MTK Decrypt Inspector</title>
+<title>CryptX v3.8 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.7</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.8</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -941,11 +941,12 @@ const VERSION_LIBRARIES = {
 };
 
 // Version-specific service class requirements
-// A11: keymaster/gatekeeper use 'hal' class
+// A11: keymaster/gatekeeper use 'hal' class (early_hal also works)
 // A12+: keymaster should use 'early_hal' for earlier start
 // A13+: gatekeeper should also use 'early_hal'
+// Note: For A11, both 'hal' and 'early_hal' are acceptable for keymaster
 const VERSION_SERVICE_CLASS = {
-  11: { tee: 'core', keymaster: 'hal', gatekeeper: 'hal' },
+  11: { tee: 'core', keymaster: 'hal', keymasterAlt: 'early_hal', gatekeeper: 'hal' },
   12: { tee: 'core', keymaster: 'early_hal', gatekeeper: 'hal' },
   13: { tee: 'core', keymaster: 'early_hal', gatekeeper: 'early_hal' },
   14: { tee: 'core', keymaster: 'early_hal', gatekeeper: 'early_hal' },
@@ -1604,6 +1605,8 @@ async function selectBranch(branch){
 
     load('Parsing properties...','',60);parseProps();
 
+    load('Detecting Android version...','Version-specific checks',62);detectA15PlusMode();
+
     load('Parsing init services...','Deep analysis',65);parseInitServices();
 
     load('Deep binary verification...','Checking every service binary',72);deepBinaryCheck();
@@ -2166,7 +2169,7 @@ async function scanCommonTree(url,owner,repo,branch){
 
     S.fetchedCount+=toFetch.length;
 
-    detectTEE();parseFstab();parseBoardConfig();parseDeviceMk();parseXmlManifest();parseProps();
+    detectTEE();parseFstab();parseBoardConfig();parseDeviceMk();parseXmlManifest();parseProps();detectA15PlusMode();
 
     parseInitServices();deepBinaryCheck();analyzeDependencyChain();runValidation();computeVerdict();analyzeRootCauses();generateFixes();
 
@@ -3248,10 +3251,15 @@ function runValidation(){
     }
     
     if(kmSvcs.length > 0){
-      const kmClassOk = kmSvcs.some(s => s.className === verServiceClass.keymaster);
+      // For A11, accept both 'hal' and 'early_hal' as valid keymaster classes
+      const validKmClasses = [verServiceClass.keymaster];
+      if(verServiceClass.keymasterAlt){
+        validKmClasses.push(verServiceClass.keymasterAlt);
+      }
+      const kmClassOk = kmSvcs.some(s => validKmClasses.includes(s.className));
       chk('ver_km_class','Version Services',`Keymaster class '${verServiceClass.keymaster}'`,kmClassOk,7,
-        `Keymaster uses class ${verServiceClass.keymaster}`,
-        `Keymaster should use class ${verServiceClass.keymaster} for Android ${ver}`);
+        `Keymaster uses class ${verServiceClass.keymaster}${verServiceClass.keymasterAlt ? ` or ${verServiceClass.keymasterAlt}` : ''}`,
+        `Keymaster should use class ${verServiceClass.keymaster}${verServiceClass.keymasterAlt ? ` or ${verServiceClass.keymasterAlt}` : ''} for Android ${ver}`);
     }
     
     if(gkSvcs.length > 0){
@@ -3810,10 +3818,15 @@ ${deprecatedFlags.map(f => `- ${f} := ${bc[f]}`).join('\n')}`, ver);
     // Check service classes for version compliance
     const kmSvcs = S.initServices.filter(s => s.isCrypto);
     if(kmSvcs.length > 0 && verServiceClass.keymaster){
-      const wrongClassKm = kmSvcs.filter(s => s.className !== verServiceClass.keymaster);
+      // For A11, accept both 'hal' and 'early_hal' as valid keymaster classes
+      const validKmClasses = [verServiceClass.keymaster];
+      if(verServiceClass.keymasterAlt){
+        validKmClasses.push(verServiceClass.keymasterAlt);
+      }
+      const wrongClassKm = kmSvcs.filter(s => !validKmClasses.includes(s.className));
       if(wrongClassKm.length > 0){
         rc('high',75,`Android ${ver} Keymaster Class Incorrect`,
-          `Keymaster should use class '${verServiceClass.keymaster}' for Android ${ver}`,
+          `Keymaster should use class '${verServiceClass.keymaster}'${verServiceClass.keymasterAlt ? ` or '${verServiceClass.keymasterAlt}'` : ''} for Android ${ver}`,
           wrongClassKm.map(s => `${s.name}: class ${s.className||'not set'}`),
           `FILE: init.recovery.*.rc
 
@@ -3982,28 +3995,8 @@ ${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(
 + vendor /vendor ext4 ro wait,slotselect,avb,logical,first_stage_mount`);
   }
   
-  // === Recovery Library Issues ===
-  if(S.recoveryLibs && S.recoveryLibs.missing && S.recoveryLibs.missing.length > 0){
-    rc('high',70,'Missing Keymaster Recovery Libraries',
-      'Keymaster requires specific libraries for decryption. Missing libraries may cause keymaster to fail.',
-      S.recoveryLibs.missing.map(l => `Missing: ${l}`),
-      `FILE: device.mk
-
-# Add missing keymaster libraries:
-+ TARGET_RECOVERY_DEVICE_MODULES += \\
-+     libkeymaster4 \\
-+     libkeymaster41 \\
-+     libpuresoftkeymasterdevice \\
-+     libion \\
-+     libxml2
-
-+ RECOVERY_LIBRARY_SOURCE_FILES += \\
-+     \$(TARGET_OUT_SHARED_LIBRARIES)/libkeymaster4.so \\
-+     \$(TARGET_OUT_SHARED_LIBRARIES)/libkeymaster41.so \\
-+     \$(TARGET_OUT_SHARED_LIBRARIES)/libpuresoftkeymasterdevice.so \\
-+     \$(TARGET_OUT_SHARED_LIBRARIES)/libion.so \\
-+     \$(TARGET_OUT_SHARED_LIBRARIES)/libxml2.so`);
-  }
+  // NOTE: Recovery library issues are now handled by version-specific check
+  // "Android X Missing Recovery Libraries" above - no duplicate needed
   
   // === Service Trigger Issues ===
   if(S.serviceTriggers && !S.serviceTriggers.hwservicemanager && !S.serviceTriggers.vendorListener){
