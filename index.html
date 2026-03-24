@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.2 — MTK Decrypt Inspector</title>
+<title>CryptX v3.3 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.2</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.3</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -2564,7 +2564,7 @@ function detectDrbinFiles(){
   // Check for drbin files in tree
   const treeDrbins = S.tree.filter(f => f.path.toLowerCase().endsWith('.drbin'));
   
-  // Build drbin analysis
+  // Build drbin analysis using CRITICAL_DRBINS constant
   for(const [filename, description] of Object.entries(TRUSTONIC_DRBINS)){
     const inTree = treeDrbins.some(f => f.path.toLowerCase().includes(filename.toLowerCase()));
     const referenced = referencedDrbins.has(filename);
@@ -2573,7 +2573,7 @@ function detectDrbinFiles(){
       description,
       inTree,
       referenced,
-      critical: ['06090000000000000000000000000000.drbin', '020f0000000000000000000000000000.drbin', '05120000000000000000000000000000.drbin'].includes(filename)
+      critical: CRITICAL_DRBINS.includes(filename)
     });
   }
   
@@ -3954,6 +3954,169 @@ ${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(
     }
   }
 
+  // === VINTF Manifest Issues ===
+  if(S.xmlManifest && S.xmlManifest.services){
+    const manifestServices = S.xmlManifest.services;
+    
+    // Check for missing keymaster in manifest
+    const hasKmManifest = manifestServices.some(s => 
+      s.toLowerCase().includes('keymaster') || s.toLowerCase().includes('keymint'));
+    if(!hasKmManifest){
+      rc('high',70,'VINTF Missing Keymaster/Keymint HAL',
+        'No keymaster or keymint HAL declared in VINTF manifest. This may cause HAL registration failures.',
+        ['Checked: manifest.xml, compatibility_matrix.xml, vintf manifest files'],
+        `FILE: manifest.xml or device.mk
+
+# Add VINTF manifest for keymaster:
++ <hal format="hidl">
++     <name>android.hardware.keymaster@4.1</name>
++     <transport>hwbinder</transport>
++     <version>4.1</version>
++     <interface>
++         <name>IKeymasterDevice</name>
++         <instance>default</instance>
++     </interface>
++ </hal>
+
+# Or in device.mk:
++ PRODUCT_PACKAGES += android.hardware.keymaster@4.1-service.trustonic`);
+    }
+    
+    // Version-specific VINTF issues
+    if(S.androidVersion && S.androidVersion.version){
+      const ver = S.androidVersion.version;
+      const verVintf = VERSION_VINTF_MANIFESTS[ver] || { required: [], optional: [] };
+      
+      const missingVintf = (verVintf.required || []).filter(req => 
+        !manifestServices.some(s => s.includes(req))
+      );
+      
+      if(missingVintf.length > 0){
+        rc('high',80,`Android ${ver} Missing VINTF Declarations`,
+          `Required VINTF declarations for Android ${ver} are missing`,
+          missingVintf.map(v => `Missing: ${v}`),
+          `FILE: manifest.xml or device.mk
+
+# Android ${ver} required VINTF declarations:
+${missingVintf.map(v => `+ Ensure ${v} is declared in manifest or built from source`).join('\n')}`);
+      }
+      
+      // A15+ Keymint check
+      if(ver >= 15){
+        const hasKeymint = manifestServices.some(s => s.toLowerCase().includes('keymint'));
+        if(!hasKeymint){
+          rc('critical',90,'Android 15+ Missing Keymint HAL',
+            'Android 15+ requires Keymint HAL instead of Keymaster for FBE decryption',
+            [`Current: keymaster detected, but A15+ requires keymint`],
+            `FILE: device.mk
+
+# Android 15+ requires Keymint packages:
++ PRODUCT_PACKAGES += \\
++     android.hardware.security.keymint \\
++     android.hardware.security.secureclock \\
++     android.hardware.security.sharedsecret`);
+        }
+      }
+    }
+  }
+  
+  // === Kernel Module Issues ===
+  if(S.androidVersion && S.androidVersion.version){
+    const ver = S.androidVersion.version;
+    const kernelModules = VERSION_KERNEL_MODULES[ver] || [];
+    const cmdline = bc['BOARD_KERNEL_CMDLINE'] || '';
+    
+    const missingModules = kernelModules.filter(mod => 
+      !cmdline.toLowerCase().includes(mod.toLowerCase())
+    );
+    
+    if(missingModules.length > 0){
+      rc('medium',50,`Missing Kernel Module Support`,
+        `Kernel modules required for Android ${ver} encryption may not be enabled`,
+        missingModules.map(m => `Missing: ${m}`),
+        `FILE: BoardConfig.mk
+
+# Add kernel cmdline for encryption modules:
++ BOARD_KERNEL_CMDLINE += ${missingModules.join(' ')}
+
+# Or ensure kernel config has:
+# CONFIG_INLINE_ENCRYPTION=y
+# CONFIG_FS_ENCRYPTION=y`);
+    }
+  }
+  
+  // === Version-Specific Service Issues ===
+  if(S.androidVersion && S.androidVersion.version && S.tee.type !== 'unknown'){
+    const ver = S.androidVersion.version;
+    const verInitServices = VERSION_INIT_SERVICES[ver];
+    
+    if(verInitServices){
+      // Check TEE services
+      const teeSvcsFound = verInitServices.tee.filter(svc => 
+        S.initServices.some(s => s.name.includes(svc) || s.binary.includes(svc))
+      );
+      if(teeSvcsFound.length < verInitServices.tee.length){
+        const missing = verInitServices.tee.filter(svc => !teeSvcsFound.includes(svc));
+        rc('medium',60,'Missing TEE Service for Android Version',
+          `Expected TEE service(s) not found for Android ${ver}`,
+          missing.map(m => `Expected: ${m}`),
+          `FILE: init.recovery.*.rc
+
+# Add missing TEE service:
++ service ${missing[0]} /vendor/bin/${missing[0]}
++     class core
++     user root
++     group root system
++     disabled
++     seclabel u:r:recovery:s0`);
+      }
+      
+      // Check keymaster services
+      const kmSvcsFound = verInitServices.keymaster.filter(svc => 
+        S.initServices.some(s => s.name.includes(svc) || s.binary.includes(svc))
+      );
+      if(kmSvcsFound.length === 0 && S.initServices.filter(s=>s.isCrypto).length === 0){
+        rc('high',75,`Android ${ver} Missing Keymaster Service`,
+          `Expected keymaster service for Android ${ver} not found`,
+          verInitServices.keymaster.map(k => `Expected: ${k}`),
+          `FILE: init.recovery.*.rc
+
+# Add keymaster service for Android ${ver}:
++ service ${verInitServices.keymaster[0]} /vendor/bin/hw/android.hardware.keymaster@4.${ver >= 13 ? '1' : '0'}-service.${S.tee.type}
++     class early_hal
++     user system
++     group system drmrpc
++     disabled
++     seclabel u:r:recovery:s0`);
+      }
+      
+      // A15+ required services
+      if(verInitServices.required && ver >= 15){
+        const reqSvcsFound = verInitServices.required.filter(svc =>
+          S.initServices.some(s => s.name.toLowerCase().includes(svc.toLowerCase()) || 
+                                    s.binary.toLowerCase().includes(svc.toLowerCase()) ||
+                                    s.name.toLowerCase().includes('keymint'))
+        );
+        if(reqSvcsFound.length < verInitServices.required.length){
+          rc('critical',85,'Android 15+ Missing Required Keymint Services',
+            `Android 15+ requires Keymint services for FBE decryption`,
+            verInitServices.required.filter(s => !reqSvcsFound.includes(s)),
+            `FILE: device.mk and init.recovery.*.rc
+
+# Android 15+ requires Keymint:
++ PRODUCT_PACKAGES += android.hardware.security.keymint-service
+
+# In init.recovery.*.rc:
++ service vendor.keymint-service /vendor/bin/hw/android.hardware.security.keymint-service
++     class early_hal
++     user nobody
++     group system drmrpc
++     seclabel u:r:recovery:s0`);
+        }
+      }
+    }
+  }
+
   S.rootCauses.sort((a,b)=>b.probability-a.probability);
 
 }
@@ -5069,8 +5232,8 @@ function renderOverview(){
   h+=`<div class="validation-summary-card">`;
 
   // Define category order and grouping
-  const categoryOrder = ['TEE','Keymaster','Gatekeeper','Fstab','BoardConfig','Services','Binaries','CrossCheck','Version Flags','Version Services','Version Libraries','Version Packages','Version Keymaster','Version Crypto','A15+','Libraries'];
-  const versionCategories = ['Version Flags','Version Services','Version Libraries','Version Packages','Version Keymaster','Version Crypto','A15+'];
+  const categoryOrder = ['TEE','Keymaster','Gatekeeper','Fstab','BoardConfig','Services','Binaries','CrossCheck','Version','Version Flags','Version Services','Version Libraries','Version Packages','Version Keymaster','Version Crypto','A15+','VINTF','Kernel','Libraries','Trustonic'];
+  const versionCategories = ['Version','Version Flags','Version Services','Version Libraries','Version Packages','Version Keymaster','Version Crypto','A15+'];
   const cats=[...new Set(S.checks.map(c=>c.cat))].sort((a,b) => {
     const aIdx = categoryOrder.indexOf(a);
     const bIdx = categoryOrder.indexOf(b);
