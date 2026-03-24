@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.13 — MTK Decrypt Inspector</title>
+<title>CryptX v3.14 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.13</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.14</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -748,7 +748,7 @@ const TEE_DB = {
 
     devNodes:['/dev/mobicore','/dev/mobicore-user','/dev/t-base-tui'],
 
-    rcPat:[/mcDriverDaemon/i,/mobicore/i,/tbaseLoader/i,/trustonic/i,/mcRegistry/i,/TbStorage/i],
+    rcPat:[/mcDriverDaemon/i,/mobicore/i,/tbaseLoader/i,/mcRegistry/i,/TbStorage/i],
 
     desc:'Samsung/MediaTek Kinibi TEE. Uses mcDriverDaemon.',
 
@@ -2798,10 +2798,12 @@ function parseInitServices(){
 
         if(/hardware.*service|hidl|aidl/i.test(n))cur.isHAL=true;
 
-        for(const[tee,sig] of Object.entries(TEE_DB)){
-
-          if(sig.rcPat.some(p=>p.test(sm[1]+' '+sm[2]))){cur.isTEE=true;cur.teeType=tee;}
-
+        // TEE daemon detection - exclude keymaster/gatekeeper services
+        // A keymaster service is NOT the TEE daemon itself, even if binary contains TEE name
+        if(!cur.isCrypto && !cur.isGK){
+          for(const[tee,sig] of Object.entries(TEE_DB)){
+            if(sig.rcPat.some(p=>p.test(sm[1]+' '+sm[2]))){cur.isTEE=true;cur.teeType=tee;}
+          }
         }
 
       }else if(cur&&l&&!l.startsWith('#')&&!l.startsWith('on ')&&!l.startsWith('import ')){
@@ -4241,14 +4243,17 @@ ${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(
     }
     
     // Check if mcDriverDaemon has correct arguments
-    const teeSvc = S.initServices.find(s => s.isTEE);
-    if(teeSvc && teeSvc.args){
-      const hasSfsReformat = teeSvc.args.includes('--sfs-reformat');
-      const hasP1 = teeSvc.args.includes('--P1');
+    // Specifically look for mcDriverDaemon or mobicore service, not any TEE service
+    const mcDaemonSvc = S.initServices.find(s => 
+      s.isTEE && (/mcDriverDaemon/i.test(s.binary) || /mobicore/i.test(s.name) || /mcDriverDaemon/i.test(s.name))
+    );
+    if(mcDaemonSvc && mcDaemonSvc.args){
+      const hasSfsReformat = mcDaemonSvc.args.includes('--sfs-reformat');
+      const hasP1 = mcDaemonSvc.args.includes('--P1');
       if(!hasSfsReformat || !hasP1){
         rc('medium',55,'Trustonic Daemon Missing Arguments',
           'mcDriverDaemon should include --sfs-reformat and --P1 arguments for proper recovery operation',
-          [`Current args: ${teeSvc.args}`],
+          [`Service: ${mcDaemonSvc.name}`, `Binary: ${mcDaemonSvc.binary}`, `Args: ${mcDaemonSvc.args}`],
           `FILE: init.tee.rc
 
   service mobicore /vendor/bin/mcDriverDaemon --sfs-reformat --P1 /mnt/vendor/persist/mcRegistry \\
