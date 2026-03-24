@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.19 — MTK Decrypt Inspector</title>
+<title>CryptX v3.20 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.19</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.20</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -945,13 +945,14 @@ const VERSION_LIBRARIES = {
 // A11: keymaster/gatekeeper use 'hal' class (early_hal also works)
 // A12+: keymaster should use 'early_hal' for earlier start
 // A13+: gatekeeper should also use 'early_hal'
+// A15+: Service classes are more flexible - TEE can be disabled/triggered, gatekeeper can be 'hal'
 // Note: For A11, both 'hal' and 'early_hal' are acceptable for keymaster
 const VERSION_SERVICE_CLASS = {
   11: { tee: 'core', keymaster: 'hal', keymasterAlt: 'early_hal', gatekeeper: 'hal' },
   12: { tee: 'core', keymaster: 'early_hal', gatekeeper: 'hal' },
   13: { tee: 'core', keymaster: 'early_hal', gatekeeper: 'early_hal' },
   14: { tee: 'core', keymaster: 'early_hal', gatekeeper: 'early_hal' },
-  15: { tee: 'core', keymaster: 'early_hal', gatekeeper: 'early_hal' }
+  15: { tee: null, keymaster: 'early_hal', gatekeeper: null }  // A15+: TEE/GK class not enforced
 };
 
 // Version-specific init service requirements (from commit 97f07ab analysis)
@@ -3147,13 +3148,16 @@ function runValidation(){
 
   }
 
+  // FBE Metadata Decrypt check
+  // For A15+, this flag should NOT be set (metadata decrypt removed)
+  // For A11-A14 with metadata_encryption, flag may be needed (or auto-handled by modern recovery)
+  const isA15Plus = S.androidVersion && S.androidVersion.version >= 15;
+  const needsMetaFlag = dataE.some(e => e.metaEnc) && !modernRecovery && !isA15Plus;
+  
   chk('bc_meta','BoardConfig','FBE Metadata Decrypt',
-
-    !dataE.some(e=>e.metaEnc)||bc['TW_INCLUDE_FBE_METADATA_DECRYPT']==='true'||modernRecovery,8,
-
-    dataE.some(e=>e.metaEnc)?(bc['TW_INCLUDE_FBE_METADATA_DECRYPT']==='true'?'Explicitly enabled':'Auto-handled'):'Not required',
-
-    'metadata_encryption in fstab but flag not set');
+    !needsMetaFlag || bc['TW_INCLUDE_FBE_METADATA_DECRYPT']==='true',8,
+    isA15Plus?'Not required for A15+':(dataE.some(e=>e.metaEnc)?(bc['TW_INCLUDE_FBE_METADATA_DECRYPT']==='true'?'Explicitly enabled':'Auto-handled'):'Not required'),
+    isA15Plus?'TW_INCLUDE_FBE_METADATA_DECRYPT should be removed for A15+':'metadata_encryption in fstab but flag not set');
 
   chk('bc_patch','BoardConfig','PLATFORM_SECURITY_PATCH',!!bc['PLATFORM_SECURITY_PATCH'],16,
 
@@ -3264,7 +3268,8 @@ function runValidation(){
     }
     
     // === Version-Specific Service Class Checks ===
-    if(teeSvcs.length > 0){
+    // TEE class check - skip if not required (null) for this Android version
+    if(teeSvcs.length > 0 && verServiceClass.tee){
       const teeClassOk = teeSvcs.some(s => s.className === verServiceClass.tee);
       chk('ver_tee_class','Version Services',`TEE class '${verServiceClass.tee}'`,teeClassOk,5,
         `TEE daemon uses class ${verServiceClass.tee}`,
@@ -3283,7 +3288,8 @@ function runValidation(){
         `Keymaster should use class ${verServiceClass.keymaster}${verServiceClass.keymasterAlt ? ` or ${verServiceClass.keymasterAlt}` : ''} for Android ${ver}`);
     }
     
-    if(gkSvcs.length > 0){
+    // Gatekeeper class check - skip if not required (null) for this Android version
+    if(gkSvcs.length > 0 && verServiceClass.gatekeeper){
       const gkClassOk = gkSvcs.some(s => s.className === verServiceClass.gatekeeper);
       chk('ver_gk_class','Version Services',`Gatekeeper class '${verServiceClass.gatekeeper}'`,gkClassOk,4,
         `Gatekeeper uses class ${verServiceClass.gatekeeper}`,
@@ -3440,20 +3446,19 @@ function runValidation(){
   }
   
   // === Trustonic drbin Checks ===
+  // NOTE: drbin files are typically loaded from device's /vendor/app/mcRegistry/,
+  // NOT from the recovery tree. Skip tree checks - only check if they're referenced.
   if(S.tee.type === 'trustonic' && S.drbinFiles && S.drbinFiles.length > 0){
+    // Check that critical drbins are at least referenced in mcDriverDaemon args
     const criticalDrbins = S.drbinFiles.filter(d => d.critical);
-    const missingCritical = criticalDrbins.filter(d => !d.inTree && !d.referenced);
+    const referencedCritical = criticalDrbins.filter(d => d.referenced);
     
-    chk('drbin_critical','Trustonic','Critical drbin Files',missingCritical.length === 0,8,
-      'All critical drbins configured',
-      `Missing critical drbins: ${missingCritical.map(d=>d.filename).join(', ')}`);
+    chk('drbin_critical','Trustonic','Critical drbin Files',referencedCritical.length > 0,8,
+      `${referencedCritical.length} critical drbins referenced in mcDriverDaemon args`,
+      'No critical drbins referenced - add to mcDriverDaemon -r arguments');
     
-    const referencedNotInTree = S.drbinFiles.filter(d => d.referenced && !d.inTree);
-    if(referencedNotInTree.length > 0){
-      chk('drbin_files','Trustonic','drbin Files in Tree',false,5,
-        'All referenced drbins in tree',
-        `${referencedNotInTree.length} drbins referenced but not in tree`);
-    }
+    // REMOVED: "drbins referenced but not in tree" check
+    // drbin files are loaded from device's /vendor/app/mcRegistry/, not recovery tree
   }
   
   // === TW_FORCE_KEYMASTER_VER Check ===
@@ -3492,22 +3497,11 @@ function runValidation(){
       }
       
       // Android 15+ specific VINTF checks
-      if(ver >= 15){
-        const hasKeymint = manifestServices.some(s => s.includes('keymint') || s.includes('Keymint'));
-        chk('vintf_keymint','VINTF','Keymint HAL (A15+)',hasKeymint,8,
-          'Keymint HAL declared in manifest',
-          'Android 15+ requires Keymint HAL in VINTF manifest','high');
-        
-        const hasSecureClock = manifestServices.some(s => s.includes('secureclock'));
-        chk('vintf_secureclock','VINTF','SecureClock HAL (A15+)',hasSecureClock,5,
-          'SecureClock HAL declared',
-          'Android 15+ requires SecureClock HAL');
-        
-        const hasSharedSecret = manifestServices.some(s => s.includes('sharedsecret'));
-        chk('vintf_sharedsecret','VINTF','SharedSecret HAL (A15+)',hasSharedSecret,5,
-          'SharedSecret HAL declared',
-          'Android 15+ requires SharedSecret HAL');
-      }
+      // NOTE: A15+ keymint/secureclock/sharedsecret are typically included via PRODUCT_PACKAGES,
+      // not in recovery tree VINTF manifest. Skip these checks - a15_security_pkgs handles this.
+      // if(ver >= 15){
+      //   ... removed - these are false positives for recovery trees ...
+      // }
     }
   }
   
@@ -3550,17 +3544,25 @@ function runValidation(){
   }
   
   // === Kernel Module Requirements Check ===
+  // Skip if TARGET_NO_KERNEL=true (prebuilt kernel) - modules are built into kernel
   if(S.androidVersion && S.androidVersion.version){
     const ver = S.androidVersion.version;
     const kernelModules = VERSION_KERNEL_MODULES[ver] || [];
+    const hasPrebuiltKernel = bc['TARGET_NO_KERNEL'] === 'true';
     
-    // Check kernel cmdline for required modules
-    const cmdline = bc['BOARD_KERNEL_CMDLINE'] || '';
-    for(const mod of kernelModules){
-      const hasModule = cmdline.toLowerCase().includes(mod.toLowerCase());
-      chk(`kernel_${mod}`,'Kernel',`${mod} module`,hasModule,4,
-        `${mod} support in kernel cmdline`,
-        `Consider adding ${mod} to BOARD_KERNEL_CMDLINE`);
+    if(!hasPrebuiltKernel && kernelModules.length > 0){
+      // Check kernel cmdline for required modules
+      const cmdline = bc['BOARD_KERNEL_CMDLINE'] || '';
+      for(const mod of kernelModules){
+        const hasModule = cmdline.toLowerCase().includes(mod.toLowerCase());
+        chk(`kernel_${mod}`,'Kernel',`${mod} module`,hasModule,4,
+          `${mod} support in kernel cmdline`,
+          `Consider adding ${mod} to BOARD_KERNEL_CMDLINE`);
+      }
+    } else if(hasPrebuiltKernel){
+      // Info-only check for prebuilt kernel
+      chk('kernel_prebuilt','Kernel','Kernel Modules',true,2,
+        'Prebuilt kernel detected - modules assumed built-in','');
     }
   }
 
