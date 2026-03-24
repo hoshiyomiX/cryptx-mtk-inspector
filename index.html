@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.4 — MTK Decrypt Inspector</title>
+<title>CryptX v3.5 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.4</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.5</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -2464,6 +2464,11 @@ function detectAndroidVersion(){
     S.a15plus.isA15Compat = true;
     S.a15plus.indicators.versionBased = true;
   }
+  // If manual version is < 15, override A15+ detection
+  if(detectedVersion && detectedVersion < 15 && S.manualVersion){
+    S.a15plus.isA15Compat = false;
+    S.a15plus.indicators.manualOverride = true;
+  }
 }
 
 // Get version-specific required libraries
@@ -3254,7 +3259,9 @@ function runValidation(){
   }
 
   // === A15+ Specific Checks ===
-  if(S.a15plus && S.a15plus.isA15Compat){
+  // Only run if Android version is 15+
+  const isActuallyA15Plus = S.androidVersion && S.androidVersion.version >= 15;
+  if(isActuallyA15Plus){
     chk('a15_compat','A15+','Platform Version (A15+ Compat)',true,5,
       `${S.a15plus.platformVersion} — A15+ compatibility mode detected`,'');
     
@@ -3812,7 +3819,9 @@ ${missingVerLibs.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so`).join(
   }
 
   // === A15+ Specific Issues ===
-  if(S.a15plus && S.a15plus.isA15Compat){
+  // Only run if Android version is 15+
+  const isActuallyA15PlusIssues = S.androidVersion && S.androidVersion.version >= 15;
+  if(isActuallyA15PlusIssues){
     const securityPkgs = S.deviceMk.packages.filter(p => p.includes('android.hardware.security'));
     const missingPkgs = A15_SECURITY_PACKAGES.filter(p => !securityPkgs.includes(p));
     
@@ -4452,7 +4461,9 @@ function generateFixes(){
     raw:dbLines.filter(l=>l.type==='add').map(l=>l.text).join('\n')});
 
   // === A15+ Specific Fixes ===
-  if(S.a15plus && S.a15plus.isA15Compat){
+  // Only run if Android version is 15+
+  const isActuallyA15PlusFixes = S.androidVersion && S.androidVersion.version >= 15;
+  if(isActuallyA15PlusFixes){
     const a15Lines = [];
     
     a15Lines.push({type:'header',text:'@@ Android 15+ Compatibility @@'});
