@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.26 — MTK Decrypt Inspector</title>
+<title>CryptX v3.27 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.26</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.27</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -3095,18 +3095,18 @@ function runValidation(){
 + PRODUCT_COPY_FILES += \\
 +     $(LOCAL_PATH)/prebuilt/tee/tee_binary:vendor/bin/tee_binary`);
 
-  const teeTriggerOk=teeSvcs.length===0||teeSvcs.some(s=>s.triggers.length>0||!s.disabled);
+  // TEE daemon can start if: not disabled (auto-starts with class), OR disabled but has triggers
+  // Note: 'disabled' prevents class auto-start; service needs trigger to start
+  const teeTriggerOk=teeSvcs.length===0||teeSvcs.some(s=>!s.disabled||s.triggers.length>0);
 
   chk('tee_daemon_trigger','TEE','TEE Daemon Can Start',teeTriggerOk,10,
-    teeSvcs.length>0?'Service can start':'N/A',
+    teeSvcs.length>0?'Service can start (not disabled or has trigger)':'N/A',
     'TEE daemon disabled with no trigger',
     `FILE: init.recovery.*.rc
-# Remove "disabled" or add a trigger:
-- service tee_daemon /vendor/bin/...
+# Service needs a way to start. Options:
+# Option 1: Remove 'disabled' to auto-start with class:
 -     disabled
-+ service tee_daemon /vendor/bin/...
-+     oneshot
-
+# Option 2: Keep 'disabled' but add trigger:
 + on property:hwservicemanager.ready=true
 +     start tee_daemon`);
 
@@ -3146,12 +3146,17 @@ function runValidation(){
 + PRODUCT_COPY_FILES += \\
 +     $(LOCAL_PATH)/prebuilt/keymaster/keymaster-service:vendor/bin/hw/keymaster-service`);
 
-  const kmTriggerOk=kmSvcs.length===0||kmSvcs.some(s=>s.triggers.length>0||!s.disabled);
+  // Service can start if: not disabled (auto-starts with class), OR disabled but has triggers
+  // Note: 'disabled' prevents class auto-start; service needs trigger to start
+  const kmTriggerOk=kmSvcs.length===0||kmSvcs.some(s=>!s.disabled||s.triggers.length>0);
 
   chk('keymaster_trigger','Keymaster','Keymaster Can Start',kmTriggerOk,8,
-    'Service can start','Keymaster disabled with no trigger',
+    'Service can start (not disabled or has trigger)','Keymaster/keymint disabled with no trigger',
     `FILE: init.recovery.*.rc
-# Remove "disabled" or add trigger to start keymaster:
+# Service needs a way to start. Options:
+# Option 1: Remove 'disabled' to auto-start with class:
+-     disabled
+# Option 2: Keep 'disabled' but add trigger:
 + on property:hwservicemanager.ready=true
 +     start keymaster`);
 
