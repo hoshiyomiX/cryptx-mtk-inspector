@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CryptX v3.25 — MTK Decrypt Inspector</title>
+<title>CryptX v3.26 — MTK Decrypt Inspector</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono:wght@400;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -468,7 +468,7 @@ body{background:var(--md-surface);color:var(--md-on-surface);font-family:'Google
 
       <div>
 
-        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.25</span></div>
+        <div class="title-medium" style="color:var(--md-primary)">CryptX <span style="font-size:12px;opacity:0.7">v3.26</span></div>
 
         <div class="label-small" style="color:var(--md-on-surface-variant)">MTK Decrypt Inspector</div>
 
@@ -3676,40 +3676,61 @@ ${S.recoveryLibs.missing.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so
   }
 
   // === VINTF Manifest Checks ===
+  // Note: For TWRP recovery, init service declaration is more critical than VINTF manifest
+  // If keymaster/keymint is properly declared in init, VINTF check becomes informational only
+  const kmInInit = S.initServices.filter(s=>s.isCrypto);
+  const hasKmInInit = kmInInit.length > 0;
+  
   if(S.xmlManifest && S.xmlManifest.services.length > 0){
     const manifestServices = S.xmlManifest.services;
     
+    // Check for both keymaster AND keymint in manifest (A15+ uses keymint)
     const hasKmManifest = manifestServices.some(s => 
-      s.includes('keymaster') || s.includes('Keymaster'));
-    chk('vintf_keymaster','VINTF','Keymaster in Manifest',hasKmManifest,6,
-      'Keymaster HAL declared in manifest','Keymaster not found in VINTF manifest',
-      `FILE: manifest.xml or vintf manifest
-# Add keymaster HAL declaration:
+      /keymaster|keymint/i.test(s));
+    
+    // VINTF check passes if: manifest has keymaster/keymint OR init has proper service declaration
+    // For recovery, init service is what actually matters
+    const kmVintfOk = hasKmManifest || hasKmInInit;
+    
+    chk('vintf_keymaster','VINTF','Keymaster/Keymint in Manifest',kmVintfOk,6,
+      hasKmManifest ? 'Keymaster/Keymint HAL declared in manifest' : 
+      (hasKmInInit ? 'Keymaster/Keymint service declared in init (VINTF manifest optional for recovery)' : ''),
+      'Keymaster/Keymint not found in VINTF manifest or init files',
+      `FILE: manifest.xml or init.recovery.*.rc
+# Option 1: Add to VINTF manifest (if your tree has manifest.xml):
 + <hal format="hidl">
 +     <name>android.hardware.keymaster</name>
 +     <transport>hwbinder</transport>
-+     <version>4.1</version>
 +     <interface>
 +         <name>IKeymasterDevice</name>
 +         <instance>default</instance>
 +     </interface>
-+ </hal>`);
++ </hal>
+# Option 2: Ensure keymaster/keymint service is declared in init.recovery.*.rc
+# For A15+, use keymint interfaces in your service declaration`);
     
+    // Gatekeeper VINTF check - also check init files
+    const gkInInit = S.initServices.filter(s=>s.isGK);
+    const hasGkInInit = gkInInit.length > 0;
     const hasGkManifest = manifestServices.some(s => 
-      s.includes('gatekeeper') || s.includes('Gatekeeper'));
-    chk('vintf_gatekeeper','VINTF','Gatekeeper in Manifest',hasGkManifest,4,
-      'Gatekeeper HAL declared in manifest','Gatekeeper not found in VINTF manifest',
-      `FILE: manifest.xml or vintf manifest
-# Add gatekeeper HAL declaration:
+      /gatekeeper/i.test(s));
+    const gkVintfOk = hasGkManifest || hasGkInInit;
+    
+    chk('vintf_gatekeeper','VINTF','Gatekeeper in Manifest',gkVintfOk,4,
+      hasGkManifest ? 'Gatekeeper HAL declared in manifest' : 
+      (hasGkInInit ? 'Gatekeeper service declared in init (VINTF manifest optional for recovery)' : ''),
+      'Gatekeeper not found in VINTF manifest or init files',
+      `FILE: manifest.xml or init.recovery.*.rc
+# Option 1: Add to VINTF manifest (if your tree has manifest.xml):
 + <hal format="hidl">
 +     <name>android.hardware.gatekeeper</name>
 +     <transport>hwbinder</transport>
-+     <version>1.0</version>
 +     <interface>
 +         <name>IGatekeeper</name>
 +         <instance>default</instance>
 +     </interface>
-+ </hal>`);
++ </hal>
+# Option 2: Ensure gatekeeper service is declared in init.recovery.*.rc`);
     
     if(S.androidVersion && S.androidVersion.version){
       const ver = S.androidVersion.version;
@@ -3741,35 +3762,41 @@ ${S.recoveryLibs.missing.map(l => `+     \$(TARGET_OUT_SHARED_LIBRARIES)/${l}.so
     
     if(verInitServices){
       // Check for required TEE services
-      const teeSvcsFound = verInitServices.tee.filter(svc => 
-        S.initServices.some(s => s.name.includes(svc) || s.binary.includes(svc))
-      );
-      const missingTee = verInitServices.tee.filter(s => !teeSvcsFound.includes(s));
-      chk('ver_tee_services','Version Services',`TEE Services (${teeSvcsFound.length}/${verInitServices.tee.length})`,
-        teeSvcsFound.length === verInitServices.tee.length,6,
-        `All TEE services present: ${teeSvcsFound.join(', ')}`,
-        `Missing TEE services: ${missingTee.join(', ')}`,
+      // Note: We check for ANY TEE daemon service, not specific names
+      // TEE daemon naming depends on user's TEE type and configuration
+      const hasTeeDaemon = S.initServices.some(s => s.isTEE);
+      chk('ver_tee_services','Version Services','TEE Daemon Service',
+        hasTeeDaemon,6,
+        'TEE daemon service found in init files',
+        'No TEE daemon service found in init files',
         `FILE: init.recovery.*.rc
-# Add missing TEE services for Android ${ver}:
-# Check stock device for correct TEE daemon service definition`);
+# Add TEE daemon service for your TEE type:
+# Trustonic: mcDriverDaemon
+# TrustKernel: teed + tee-supplicant
+# Beanpod: isee_daemon
+# Microtrust: teei_daemon
+# Check stock device for correct TEE daemon binary and arguments`);
       
-      // Check for required keymaster services
-      const kmSvcsFound = verInitServices.keymaster.filter(svc => 
-        S.initServices.some(s => s.name.includes(svc) || s.binary.includes(svc))
-      );
-      const missingKm = verInitServices.keymaster.filter(s => !kmSvcsFound.includes(s));
-      chk('ver_km_services','Version Services',`Keymaster Services (${kmSvcsFound.length}/${verInitServices.keymaster.length})`,
-        kmSvcsFound.length > 0,8,
-        `Keymaster service found: ${kmSvcsFound.join(', ')}`,
-        `Missing keymaster services: ${missingKm.join(', ')}`,
+      // Check for required keymaster/keymint services
+      // Note: We check for ANY keymaster/keymint service, not specific names
+      // Service naming depends on user's TEE type and configuration
+      const hasKmService = S.initServices.some(s => s.isCrypto);
+      chk('ver_km_services','Version Services','Keymaster/Keymint Service',
+        hasKmService,8,
+        'Keymaster/Keymint service found in init files',
+        'No keymaster/keymint service found in init files',
         `FILE: init.recovery.*.rc
-# Add keymaster HAL service:
+# Add keymaster/keymint HAL service for your TEE type:
 + service keymaster /vendor/bin/hw/android.hardware.keymaster@4.x-service
 +     class early_hal
 +     user system
 +     group system drmrpc
 +     seclabel u:r:recovery:s0
-# Adjust binary path based on your device's TEE type`);
+# For A15+ with keymint:
++ service keymint /vendor/bin/hw/android.hardware.security.keymint-service
++     class early_hal
++     interface android.hardware.security.keymint.IKeyMintDevice/default
+# Check your stock vendor partition for correct binary path`);
       
       // Check for required services (A15+)
       if(verInitServices.required){
@@ -4663,18 +4690,18 @@ ${missingVintf.map(v => `+ PRODUCT_PACKAGES += ${v}`).join('\n')}`, ver);
       
       if(existingTeeSvcs.length === 0){
         // No TEE service detected at all - this is a real issue
-        const expectedTee = verInitServices.tee || [];
         rc('high',80,'Missing TEE Daemon Service',
           `No TEE daemon service found for ${teeInfo?.name || teeType}`,
           [
             `TEE detected: ${teeInfo?.name || teeType}`,
-            `Expected service names: ${expectedTee.join(', ')}`,
+            'Service naming depends on your device configuration',
             'Checked all .rc files in recovery tree'
           ],
           `FILE: init.recovery.*.rc or init.tee.rc
 
-# Add TEE daemon service for ${teeInfo?.name || teeType}:
-+ service ${teeInfo?.daemons?.[0] || 'mobicore'} /vendor/bin/${teeInfo?.daemons?.[0] || 'mobicore'}
+# Add TEE daemon service for your TEE type:
+# Common daemon names: mcDriverDaemon, teed, isee_daemon, teei_daemon
++ service tee_daemon /vendor/bin/TEE_DAEMON_BINARY
 +     class core
 +     user root
 +     group root system
@@ -4684,52 +4711,36 @@ ${missingVintf.map(v => `+ PRODUCT_PACKAGES += ${v}`).join('\n')}`, ver);
 
 # Start on hwservicemanager ready:
 + on property:hwservicemanager.ready=true
-+     start ${teeInfo?.daemons?.[0] || 'mobicore'}`, ver);
-      } else {
-        // TEE service exists but check if it matches expected names (lower severity)
-        const teeSvcsFound = verInitServices.tee.filter(svc => 
-          existingTeeSvcs.some(s => 
-            s.name.toLowerCase().includes(svc.toLowerCase()) || 
-            s.binary.toLowerCase().includes(svc.toLowerCase())
-          )
-        );
-        
-        if(teeSvcsFound.length < verInitServices.tee.length){
-          // Warning but not critical - TEE daemon exists but name is different
-          // This is informational only
-          const found = existingTeeSvcs.map(s => s.name).join(', ');
-          // Don't create an issue - just note that alternative TEE service exists
-        }
++     start tee_daemon
+# Check your stock vendor partition for correct TEE daemon binary`, ver);
       }
+      // If TEE service exists, don't report issues - naming is user-dependent
       
       // Check keymaster services
       const existingKmSvcs = S.initServices.filter(s => s.isCrypto);
-      const kmSvcsFound = verInitServices.keymaster.filter(svc => 
-        existingKmSvcs.some(s => 
-          s.name.toLowerCase().includes(svc.toLowerCase()) || 
-          s.binary.toLowerCase().includes(svc.toLowerCase())
-        )
-      );
       
       if(existingKmSvcs.length === 0){
         // No keymaster service at all - critical
         rc('critical',85,`Android ${ver} Missing Keymaster Service`,
-          `No keymaster service found for Android ${ver}`,
+          `No keymaster/keymint service found for Android ${ver}`,
           [
-            `Expected: ${verInitServices.keymaster.join(' or ')}`,
+            'Service naming depends on your TEE type and configuration',
             'Checked all .rc files in recovery tree'
           ],
           `FILE: init.recovery.*.rc
 
-# Add keymaster service for Android ${ver}:
-+ service vendor.keymaster-${ver >= 13 ? '4-1' : '4-0'} /vendor/bin/hw/android.hardware.keymaster@4.${ver >= 13 ? '1' : '0'}-service.${teeType}
+# Add keymaster/keymint service for your TEE type:
++ service keymaster /vendor/bin/hw/android.hardware.keymaster@4.x-service.TEE_VARIANT
 +     class ${ver >= 12 ? 'early_hal' : 'hal'}
 +     user system
 +     group system drmrpc
 +     disabled
 +     seclabel u:r:recovery:s0
 ${ver >= 13 ? `+     interface android.hardware.keymaster@4.0::IKeymasterDevice default
-+     interface android.hardware.keymaster@4.1::IKeymasterDevice default` : ''}`, ver);
++     interface android.hardware.keymaster@4.1::IKeymasterDevice default` : ''}
+# For A15+ keymint:
++ service keymint /vendor/bin/hw/android.hardware.security.keymint-service.TEE_VARIANT
+# Check your stock vendor partition for correct binary path`, ver);
       }
       
       // A15+ security package check (PRODUCT_PACKAGES, NOT init services)
